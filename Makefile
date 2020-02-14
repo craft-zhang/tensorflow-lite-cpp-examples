@@ -1,6 +1,6 @@
 PHONY: all
 
-all: classification
+all: classification segmentation
 LIBS = -lstdc++ -ltensorflow-lite -lpthread -lm -lz -ldl -lrt
 
 LIBS += -lopencv_highgui -lopencv_imgcodecs -lopencv_videoio -lopencv_imgproc -lopencv_core
@@ -14,5 +14,9 @@ CXX := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}g++
 classification: classification.cc model_utils.cc utils.cc
 	$(CXX) classification.cc model_utils.cc utils.cc -o tflite_classification $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(INCLUDES)
 
+segmentation: segmentation.cc model_utils.cc utils.cc
+	$(CXX) segmentation.cc model_utils.cc utils.cc -o tflite_segmentation $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(INCLUDES)
+
+
 clean:
-	rm -rf classification
+	rm -rf classification segmentation

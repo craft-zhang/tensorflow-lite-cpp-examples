@@ -10,3 +10,13 @@ Tensorflow Lite demos with input and display via OpenCV
 --input_std, -s: input standard deviation
 --profiling, -p: [0|1], profiling or not
 --threads, -t: number of threads
+
+* Segmentation: run "tflite_segmentation" with command usage as below
+--tflite_model, -m: model_name.tflite
+--input_src, -r: [0|1|2] input source: image 0, video 1, camera 2
+--input_path, -i: path of the input image/video or video port for camera, e.g., 1 for /dev/video1
+--frame_cnt, -c: the number of frames to be used
+--input_mean, -b: input mean
+--input_std, -s: input standard deviation
+--profiling, -p: [0|1], profiling or not
+--threads, -t: number of threads
