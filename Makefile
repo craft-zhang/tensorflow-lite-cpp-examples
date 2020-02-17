@@ -11,12 +11,17 @@ CXXFLAGS += --std=c++11
 
 CXX := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}g++
 
-classification: classification.cc model_utils.cc utils.cc
-	$(CXX) classification.cc model_utils.cc utils.cc -o tflite_classification $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(INCLUDES)
+COMMON_SRC = model_utils.cc utils.cc
 
-segmentation: segmentation.cc model_utils.cc utils.cc
-	$(CXX) segmentation.cc model_utils.cc utils.cc -o tflite_segmentation $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(INCLUDES)
+ifeq ($(TIDL_ACC), yes)
+  COMMON_SRC += tidl_op.cc
+endif
 
+classification: classification.cc $(COMMON_SRC)
+	$(CXX) classification.cc $(COMMON_SRC) -o tflite_classification $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(INCLUDES)
+
+segmentation: segmentation.cc $(COMMON_SRC)
+	$(CXX) segmentation.cc $(COMMON_SRC) -o tflite_segmentation $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(INCLUDES)
 
 clean:
 	rm -rf classification segmentation

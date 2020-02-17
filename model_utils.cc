@@ -1,5 +1,9 @@
 #include "model_utils.h"
 
+#ifdef TIDL_OFFLOAD
+#include "tidl_op.h"
+#endif
+
 #include <memory>
 
 #include "tensorflow/lite/builtin_op_data.h"
@@ -10,6 +14,9 @@ namespace tflite_example {
 std::unique_ptr<tflite::Interpreter> BuildTfliteInterpreter(
     const tflite::FlatBufferModel& model, int num_threads) {
   tflite::ops::builtin::BuiltinOpResolver resolver;
+#ifdef TIDL_OFFLOAD
+  resolver.AddCustom(tidl::kTidlSubgraphOp, tidl::RegisterTidlSubgraphOp());
+#endif
 
   std::unique_ptr<tflite::Interpreter> interpreter;
   if (tflite::InterpreterBuilder(model, resolver)(&interpreter) != kTfLiteOk) {
