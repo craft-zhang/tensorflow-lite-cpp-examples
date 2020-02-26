@@ -16,8 +16,6 @@
 
 #include <iostream>
 
-#include <sys/time.h>
-
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
@@ -27,13 +25,6 @@
 
 using namespace cv;
 using namespace std;
-
-/*
-* Get time in us
-*/
-double get_us(struct timeval t) {
-    return (t.tv_sec * 1000000 + t.tv_usec);
-}
 
 /*
 * Setup input from image, video, and camera

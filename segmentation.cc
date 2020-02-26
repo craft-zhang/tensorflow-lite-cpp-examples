@@ -262,14 +262,12 @@ int main(int argc, char** argv) {
    }
 
     // Running the inference
-    struct timeval start_time, stop_time;
-    gettimeofday(&start_time, nullptr);
-    const auto& result = tflite_example::RunInference(interpreter.get());
-    gettimeofday(&stop_time, nullptr);
+    double inference_time_ms;
+    const auto& result = tflite_example::RunInference(interpreter.get(), inference_time_ms);
 
     if (profiling) {
       std::cout << "Inference time for frame " << frame_index << ": "
-                << (get_us(stop_time) - get_us(start_time)) / 1000
+                << inference_time_ms
                 << " ms" << std::endl;
     }
 
