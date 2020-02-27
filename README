@@ -1,4 +1,35 @@
-Tensorflow Lite demos with input and display via OpenCV
+Tensorflow Lite demos with input and display via OpenCV and TIDL offload for AM5
+
+Procedure to build
+----------------------------
+Step 1: Set environment variables
+    * Arm only:
+      - export SYSROOT_INCDIR (if all dependent header files are under the same directoy), or
+        export FLATBUFFERS_INC_DIR, TFLITE_INC_DIR, and OPENCV_INC_DIR
+      - export SYSROOT_LIBDIR (if all dependent libs are under the same directoy), or
+        export TFLITE_LIB_DIR and OPENCV_LIB_DIR
+      - export TARGET_TOOLCHAIN_PREFIX=arm-linux-gnueabihf-
+      - export PATH=/[path]/gcc-arm-2019.03/bin:$PATH
+
+    * Add the following for TIDL offload to AM5
+      - export TIDL_ACC=yes
+      - export TIDL_API_DIR
+      - export TIDL_API_LIB_DIR (if tidl-api lib is not under SYSROOT_LIBDIR)
+
+Step 2: Run "make" from the top-level directory to build the demos
+
+Example:
+  $ export SYSROOT_INCDIR="/oe-layersetup/build/arago-tmp-external-arm-toolchain/work/am57xx_evm-linux-gnueabi/tensorflow-lite-demo/01.00.00-r1/recipe-sysroot/usr/include"
+  $ export SYSROOT_LIBDIR="/oe-layersetup/build/arago-tmp-external-arm-toolchain/work/am57xx_evm-linux-gnueabi/tensorflow-lite-demo/01.00.00-r1/recipe-sysroot/usr/lib"
+  $ export TARGET_TOOLCHAIN_PREFIX=arm-linux-gnueabihf-
+  $ export PATH=/tools/gcc-arm-2019.03/bin:$PATH
+  $ export TIDL_API_DIR="/oe-layersetup/build/arago-tmp-external-arm-toolchain/work/am57xx_evm-linux-gnueabi/tensorflow-lite-demo/01.00.00-r1/recipe-sysroot/usr/share/ti/tidl"
+  $ export TIDL_ACC=yes
+
+  $ make
+
+Binaries to run on target
+---------------------------
 
 * Classification: run "tflite_classification" with command usage as below:
 --tflite_model, -m: model_name.tflite

@@ -16,6 +16,7 @@
 */
 
 #include "model_utils.h"
+#include <sys/time.h>
 
 #ifdef TIDL_OFFLOAD
 #include "tidl_op.h"
@@ -46,11 +47,24 @@ std::unique_ptr<tflite::Interpreter> BuildTfliteInterpreter(
   return interpreter;
 }
 
+/*
+* Get time in us
+*/
+double get_us(struct timeval t) {
+    return (t.tv_sec * 1000000 + t.tv_usec);
+}
 
-std::vector<float> RunInference(tflite::Interpreter* interpreter) {
+std::vector<float> RunInference(tflite::Interpreter* interpreter, double& inference_time_ms) {
   std::vector<float> output_data;
 
+  struct timeval start_time, stop_time;
+  gettimeofday(&start_time, nullptr);
+
+  // Running the inference
   interpreter->Invoke();
+
+  gettimeofday(&stop_time, nullptr);
+  inference_time_ms = (get_us(stop_time) - get_us(start_time)) / 1000;
 
   const auto& output_indices = interpreter->outputs();
   const int num_outputs = output_indices.size();

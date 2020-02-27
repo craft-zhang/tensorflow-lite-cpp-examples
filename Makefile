@@ -12,30 +12,49 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+SYSROOT_INCDIR      ?= /usr/include
+FLATBUFFERS_INC_DIR ?= $(SYSROOT_INCDIR)
+TFLITE_INC_DIR      ?= $(SYSROOT_INCDIR)
+OPENCV_INC_DIR      ?= $(SYSROOT_INCDIR)
+
+SYSROOT_LIBDIR      ?= /usr/lib
+TFLITE_LIB_DIR      ?= $(SYSROOT_LIBDIR)
+OPENCV_LIB_DIR      ?= $(SYSROOT_LIBDIR)
+
 PHONY: all
 
 all: classification segmentation
-LIBS = -lstdc++ -ltensorflow-lite -lpthread -lm -lz -ldl -lrt
 
-LIBS += -lopencv_highgui -lopencv_imgcodecs -lopencv_videoio -lopencv_imgproc -lopencv_core
+LIBS = -L $(TFLITE_LIB_DIR) -ltensorflow-lite
+LIBS += -L $(OPENCV_LIB_DIR) -lopencv_highgui -lopencv_imgcodecs -lopencv_videoio -lopencv_imgproc -lopencv_core -Wl,-rpath-link,$(OPENCV_LIB_DIR)
+LIBS += -lstdc++ -lpthread -lm -lz -ldl -lrt
 
-INCLUDES := -I.
+INCLUDES := -I. -I$(FLATBUFFERS_INC_DIR) -I$(TFLITE_INC_DIR) -I$(OPENCV_INC_DIR)
 
-CXXFLAGS += --std=c++11
+CCFLAGS = --std=c++11 -O3 -DNDEBUG -fPIC
 
 CXX := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}g++
 
 COMMON_SRC = model_utils.cc utils.cc
 
+TIDL_ACC ?= no
 ifeq ($(TIDL_ACC), yes)
   COMMON_SRC += tidl_op.cc
+  CCFLAGS += -DTIDL_OFFLOAD
+
+  TIDL_API_DIR     ?= /usr/share/ti/tidl
+  TIDL_API_INC_DIR ?= $(TIDL_API_DIR)/tidl_api/inc
+  INCLUDES += -I$(TIDL_API_INC_DIR)
+
+  TIDL_API_LIB_DIR ?= $(SYSROOT_LIBDIR)
+  LIBS += -L $(TIDL_API_LIB_DIR) -ltidl_api
 endif
 
 classification: classification.cc $(COMMON_SRC)
-	$(CXX) classification.cc $(COMMON_SRC) -o tflite_classification $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(INCLUDES)
+	$(CXX) classification.cc $(COMMON_SRC) -o tflite_classification $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
 
 segmentation: segmentation.cc $(COMMON_SRC)
-	$(CXX) segmentation.cc $(COMMON_SRC) -o tflite_segmentation $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(INCLUDES)
+	$(CXX) segmentation.cc $(COMMON_SRC) -o tflite_segmentation $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
 
 clean:
 	rm -rf classification segmentation

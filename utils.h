@@ -17,8 +17,6 @@
 #ifndef UTILS_H_
 #define UTILS_H_
 
-double get_us(struct timeval t);
-
 typedef enum
 {
   INPUT_Image          = 0,
