@@ -51,3 +51,17 @@ Binaries to run on target
 --input_std, -s: input standard deviation
 --profiling, -p: [0|1], profiling or not
 --threads, -t: number of threads
+
+Demos packaged with Processor SDK
+---------------------------------
+* Classification demo with Arm only, full TIDL offload, and partial TIDL offload (heterogeneous execution)
+  # cd /usr/share/tensorflow-lite/demos
+  # ./run_tidl_compiler.sh  [This is creating mobilenet_v1_1.0_224_tidl_am5.tflite, .bin files, and subgraph0.cfg for full TIDL offload]
+  # ./run_classification.sh [This runs Arm only classification first, and then with full TIDL offload]
+  # ./run_tidl_compiler1.sh [This is creating mobilenet_v1_1.0_224_tidl_am5.tflite, .bin files, and subgraph0.cfg for partial TIDL offload,]
+                            [specifying MobilenetV1/MobilenetV1/Conv2d_13_pointwise/Relu6 as the output tensor of the TIDL subgraph]
+  # ./run_classification.sh [This runs Arm only classification first, and then with partial TIDL offload]
+
+* Arm only segmentation demo:
+  # cd /usr/share/tensorflow-lite/demos
+  # ./run_segmentation.sh
