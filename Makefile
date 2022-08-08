@@ -14,19 +14,25 @@
 
 TARGET_TOOLCHAIN_PREFIX = aarch64-linux-gnu-
 
-FLATBUFFERS_INC_DIR     = /home/craft/workspace/gem5/tensorflow_src/build/flatbuffers/include/
-TFLITE_INC_DIR          = /home/craft/workspace/gem5/tensorflow_src/
-OPENCV_INC_DIR          = /home/craft/workspace/gem5/opencv/build/install/include/opencv4/
+TF_SRC_DIR              ?=/home/craft/workspace/gem5/tensorflow_src
+TFLITE_INC_DIR          ?=$(TF_SRC_DIR)
+FLATBUFFERS_INC_DIR     ?=$(TF_SRC_DIR)/build/flatbuffers/include
+TFLITE_LIB_DIR          ?=$(TF_SRC_DIR)/build
+TFLITE_FLATBUF_LIB_DIR  ?=$(TF_SRC_DIR)/build/_deps/flatbuffers-build
+TFLITE_RUY_LIB_DIR      ?=$(TF_SRC_DIR)/build/_deps/ruy-build/ruy
+TFLITE_FARMHASH_LIB_DIR ?=$(TF_SRC_DIR)/build/_deps/farmhash-build
+TFLITE_FFT2D_DIR        ?=$(TF_SRC_DIR)/build/_deps/fft2d-build
+TFLITE_CPUINFO_DIR      ?=$(TF_SRC_DIR)/build/_deps/cpuinfo-build
+TFLITE_CLOG_DIR         ?=$(TF_SRC_DIR)/build/_deps/clog-build
 
-TFLITE_LIB_DIR          = /home/craft/workspace/gem5/tensorflow_src/build/
-TFLITE_FLATBUF_LIB_DIR  = /home/craft/workspace/gem5/tensorflow_src/build/_deps/flatbuffers-build/
-TFLITE_RUY_LIB_DIR      = /home/craft/workspace/gem5/tensorflow_src/build/_deps/ruy-build/ruy
-OPENCV_LIB_DIR          = /home/craft/workspace/gem5/opencv/build/install/lib/
-OPENCV_LIB_3RDPARTY_DIR = /home/craft/workspace/gem5/opencv/build/install/lib/opencv4/3rdparty/
+OPENCV_SRC_DIR          ?=/home/craft/workspace/gem5/opencv
+OPENCV_INC_DIR          ?=$(OPENCV_SRC_DIR)/build/install/include/opencv4/
+OPENCV_LIB_DIR          ?=$(OPENCV_SRC_DIR)/build/install/lib/
+OPENCV_LIB_3RDPARTY_DIR ?=$(OPENCV_SRC_DIR)/build/install/lib/opencv4/3rdparty/
 
 PHONY: all
 
-all: classification segmentation
+all: classification/tflite_classification segmentation/tflite_segmentation
 
 LIBS  = $(TFLITE_LIB_DIR)/libtensorflow-lite.a
 LIBS += $(TFLITE_RUY_LIB_DIR)/libruy_ctx.a \
@@ -51,17 +57,20 @@ LIBS += $(TFLITE_RUY_LIB_DIR)/libruy_ctx.a \
 	$(TFLITE_RUY_LIB_DIR)/libruy_prepare_packed_matrices.a \
 	$(TFLITE_RUY_LIB_DIR)/libruy_denormal.a
 
-LIBS += /home/craft/workspace/gem5/tensorflow_src/build/_deps/farmhash-build/libfarmhash.a
-LIBS += /home/craft/workspace/gem5/tensorflow_src/build/_deps/flatbuffers-build/libflatbuffers.a
-LIBS += /home/craft/workspace/gem5/tensorflow_src/build/_deps/fft2d-build/libfft2d_fftsg.a
-LIBS += /home/craft/workspace/gem5/tensorflow_src/build/_deps/fft2d-build/libfft2d_fftsg2d.a
-LIBS += /home/craft/workspace/gem5/tensorflow_src/build/_deps/cpuinfo-build/libcpuinfo.a
-LIBS += /home/craft/workspace/gem5/tensorflow_src/build/_deps/clog-build/libclog.a
+LIBS += $(TFLITE_FLATBUF_LIB_DIR)/libflatbuffers.a
+LIBS += $(TFLITE_FARMHASH_LIB_DIR)/libfarmhash.a
+LIBS += $(TFLITE_FFT2D_DIR)/libfft2d_fftsg.a
+LIBS += $(TFLITE_FFT2D_DIR)/libfft2d_fftsg2d.a
+LIBS += $(TFLITE_CPUINFO_DIR)/libcpuinfo.a
+LIBS += $(TFLITE_CLOG_DIR)/libclog.a
 
 LIBS += $(OPENCV_LIB_DIR)/libopencv_world.a
-# -Wl,-rpath-link,$(OPENCV_LIB_DIR)
-LIBS += $(OPENCV_LIB_3RDPARTY_DIR)/liblibjpeg-turbo.a $(OPENCV_LIB_3RDPARTY_DIR)/liblibpng.a $(OPENCV_LIB_3RDPARTY_DIR)/libtegra_hal.a $(OPENCV_LIB_3RDPARTY_DIR)/libzlib.a
-# -Wl,-rpath-link,$(OPENCV_LIB_3RDPARTY_DIR)
+
+LIBS += $(OPENCV_LIB_3RDPARTY_DIR)/liblibjpeg-turbo.a \
+	$(OPENCV_LIB_3RDPARTY_DIR)/liblibpng.a \
+	$(OPENCV_LIB_3RDPARTY_DIR)/libtegra_hal.a \
+	$(OPENCV_LIB_3RDPARTY_DIR)/libzlib.a
+
 LIBS += -lstdc++ -lpthread -lm -ldl -lrt -static
 
 INCLUDES := -I. -I$(FLATBUFFERS_INC_DIR) -I$(TFLITE_INC_DIR) -I$(OPENCV_INC_DIR)
@@ -72,11 +81,13 @@ CXX := ${TARGET_TOOLCHAIN_PREFIX}g++
 
 COMMON_SRC = model_utils.cc utils.cc
 
-classification: classification.cc $(COMMON_SRC)
-	$(CXX) classification.cc $(COMMON_SRC) -o tflite_classification $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
+classification/tflite_classification: classification.cc $(COMMON_SRC)
+	mkdir -p classification
+	$(CXX) classification.cc $(COMMON_SRC) -o classification/tflite_classification $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
 
-segmentation: segmentation.cc $(COMMON_SRC)
-	$(CXX) segmentation.cc $(COMMON_SRC) -o tflite_segmentation $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
+segmentation/tflite_segmentation: segmentation.cc $(COMMON_SRC)
+	mkdir -p segmentation
+	$(CXX) segmentation.cc $(COMMON_SRC) -o segmentation/tflite_segmentation $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
 
 clean:
-	rm -rf classification segmentation
+	rm -rf classification/tflite_classification segmentation/tflite_segmentation
