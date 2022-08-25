@@ -32,7 +32,7 @@ OPENCV_LIB_3RDPARTY_DIR ?=$(OPENCV_SRC_DIR)/build/install/lib/opencv4/3rdparty/
 
 PHONY: all
 
-all: classification/tflite_classification segmentation/tflite_segmentation
+all: classification/tflite_classification segmentation/tflite_segmentation detection/tflite_detection
 
 LIBS  = $(TFLITE_LIB_DIR)/libtensorflow-lite.a
 LIBS += $(TFLITE_RUY_LIB_DIR)/libruy_ctx.a \
@@ -89,5 +89,9 @@ segmentation/tflite_segmentation: segmentation.cc $(COMMON_SRC)
 	mkdir -p segmentation
 	$(CXX) segmentation.cc $(COMMON_SRC) -o segmentation/tflite_segmentation $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
 
+detection/tflite_detection: detection.cc yolov5.cc $(COMMON_SRC)
+	mkdir -p detection
+	$(CXX) detection.cc yolov5.cc $(COMMON_SRC) -o detection/tflite_detection $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
+
 clean:
-	rm -rf classification/tflite_classification segmentation/tflite_segmentation
+	rm -rf classification/tflite_classification segmentation/tflite_segmentation detection/tflite_detection
