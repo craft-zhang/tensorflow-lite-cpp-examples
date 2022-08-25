@@ -38,6 +38,15 @@ struct Prediction {
   std::vector<int> labels;
 };
 
+typedef struct BoxInfo {
+  float x;
+  float y;
+  float width;
+  float height;
+  float score;
+  int label;
+} BoxInfo;
+
 class YOLOV5 {
  public:
   // Take a model path as string
@@ -96,4 +105,7 @@ class YOLOV5 {
                             std::vector<float> &confidences,
                             std::vector<int> &classIds,
                             std::vector<int> &indices);
+  void nms(std::vector<BoxInfo> &BoxInfos);
+  // void nms(std::vector<cv::Rect> &boxesNMS, std::vector<float> &confidences,
+  //          std::vector<int> &classIds, std::vector<int> &indices);
 };

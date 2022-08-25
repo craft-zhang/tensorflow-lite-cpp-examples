@@ -95,6 +95,49 @@ std::vector<std::vector<float>> YOLOV5::tensorToVector2D(
   return v;
 }
 
+void YOLOV5::nms(std::vector<BoxInfo> &BoxInfos) {
+  std::sort(BoxInfos.begin(), BoxInfos.end(),
+            [](BoxInfo a, BoxInfo b) { return a.score > b.score; });
+  std::vector<float> vArea(BoxInfos.size());
+  for (int i = 0; i < int(BoxInfos.size()); ++i) {
+    vArea[i] = BoxInfos[i].width * BoxInfos[i].height;
+  }
+
+  std::vector<bool> isSuppressed(BoxInfos.size(), false);
+  for (int i = 0; i < int(BoxInfos.size()); ++i) {
+    if (isSuppressed[i]) {
+      continue;
+    }
+    for (int j = i + 1; j < int(BoxInfos.size()); ++j) {
+      if (isSuppressed[j]) {
+        continue;
+      }
+      float xx1 = (std::max)(BoxInfos[i].x, BoxInfos[j].x);
+      float yy1 = (std::max)(BoxInfos[i].y, BoxInfos[j].y);
+      float xx2 = (std::min)(BoxInfos[i].x + BoxInfos[i].width,
+                             BoxInfos[j].x + BoxInfos[j].width);
+      float yy2 = (std::min)(BoxInfos[i].y + BoxInfos[i].height,
+                             BoxInfos[j].y + BoxInfos[j].height);
+
+      float w = (std::max)(float(0), xx2 - xx1 + 1);
+      float h = (std::max)(float(0), yy2 - yy1 + 1);
+      float inter = w * h;
+      float ovr = inter / (vArea[i] + vArea[j] - inter);
+
+      if (ovr >= this->nmsThreshold) {
+        isSuppressed[j] = true;
+      }
+    }
+  }
+  // return post_nms;
+  int idx_t = 0;
+  BoxInfos.erase(std::remove_if(BoxInfos.begin(), BoxInfos.end(),
+                                [&idx_t, &isSuppressed](const BoxInfo &f) {
+                                  return isSuppressed[idx_t++];
+                                }),
+                 BoxInfos.end());
+}
+
 void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
                                   const int &row, const int &colum,
                                   std::vector<cv::Rect> &boxes,
@@ -103,7 +146,7 @@ void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
                                   std::vector<int> &indices)
 
 {
-  std::vector<cv::Rect> boxesNMS;
+  std::vector<BoxInfo> boxesNMS;
   int max_wh = 40960;
   std::vector<float> scores;
   double confidence;
@@ -126,15 +169,30 @@ void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
       scores.clear();
       int c = classId.x * max_wh;
       if (confidence > confThreshold) {
-        boxes.push_back(cv::Rect(left, top, w, h));
-        confidences.push_back(confidence);
-        classIds.push_back(classId.x);
-        boxesNMS.push_back(cv::Rect(left, top, w, h));
+        // boxes.push_back(cv::Rect(left, top, w, h));
+        // confidences.push_back(confidence);
+        // classIds.push_back(classId.x);
+        BoxInfo boxInfo;
+        boxInfo.x = left;
+        boxInfo.y = top;
+        boxInfo.width = w;
+        boxInfo.height = h;
+        boxInfo.score = confidence;
+        boxInfo.label = classId.x;
+        boxesNMS.push_back(boxInfo);
       }
     }
   }
-  cv::dnn::NMSBoxes(boxesNMS, confidences, confThreshold, nmsThreshold,
-                    indices);
+  // cv::dnn::NMSBoxes(boxesNMS, confidences, confThreshold, nmsThreshold,
+  //                   indices);
+  nms(boxesNMS);
+
+  for (size_t i = 0; i < boxesNMS.size(); i++) {
+    boxes.push_back(cv::Rect(boxesNMS[i].x, boxesNMS[i].y, boxesNMS[i].width,
+                             boxesNMS[i].height));
+    confidences.push_back(boxesNMS[i].score);
+    classIds.push_back(boxesNMS[i].label);
+  }
 }
 
 void YOLOV5::run(cv::Mat frame, Prediction &out_pred) {
@@ -171,9 +229,9 @@ void YOLOV5::run(cv::Mat frame, Prediction &out_pred) {
   nonMaximumSupprition(predV, _out_row, _out_colum, boxes, confidences,
                        classIds, indices);
 
-  for (int i = 0; i < indices.size(); i++) {
-    out_pred.boxes.push_back(boxes[indices[i]]);
-    out_pred.scores.push_back(confidences[indices[i]]);
-    out_pred.labels.push_back(classIds[indices[i]]);
-  }
+  // for (int i = 0; i < indices.size(); i++) {
+  //   out_pred.boxes.push_back(boxes[indices[i]]);
+  //   out_pred.scores.push_back(confidences[indices[i]]);
+  //   out_pred.labels.push_back(classIds[indices[i]]);
+  // }
 };
