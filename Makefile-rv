@@ -12,23 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TARGET_TOOLCHAIN_PREFIX = aarch64-linux-gnu-
+TARGET_TOOLCHAIN_PREFIX ?= aarch64-linux-gnu-
 
 TF_SRC_DIR              ?=/home/craft/workspace/gem5/tensorflow_src
 TFLITE_INC_DIR          ?=$(TF_SRC_DIR)
-FLATBUFFERS_INC_DIR     ?=$(TF_SRC_DIR)/build/flatbuffers/include
-TFLITE_LIB_DIR          ?=$(TF_SRC_DIR)/build
-TFLITE_FLATBUF_LIB_DIR  ?=$(TF_SRC_DIR)/build/_deps/flatbuffers-build
-TFLITE_RUY_LIB_DIR      ?=$(TF_SRC_DIR)/build/_deps/ruy-build/ruy
-TFLITE_FARMHASH_LIB_DIR ?=$(TF_SRC_DIR)/build/_deps/farmhash-build
-TFLITE_FFT2D_DIR        ?=$(TF_SRC_DIR)/build/_deps/fft2d-build
-TFLITE_CPUINFO_DIR      ?=$(TF_SRC_DIR)/build/_deps/cpuinfo-build
-TFLITE_CLOG_DIR         ?=$(TF_SRC_DIR)/build/_deps/clog-build
+TFLITE_BUILD_DIR        ?=$(TF_SRC_DIR)/build
+FLATBUFFERS_INC_DIR     ?=$(TFLITE_BUILD_DIR)/flatbuffers/include
+TFLITE_LIB_DIR          ?=$(TFLITE_BUILD_DIR)
+TFLITE_FLATBUF_LIB_DIR  ?=$(TFLITE_BUILD_DIR)/_deps/flatbuffers-build
+TFLITE_RUY_LIB_DIR      ?=$(TFLITE_BUILD_DIR)/_deps/ruy-build/ruy
+TFLITE_FARMHASH_LIB_DIR ?=$(TFLITE_BUILD_DIR)/_deps/farmhash-build
+TFLITE_FFT2D_DIR        ?=$(TFLITE_BUILD_DIR)/_deps/fft2d-build
+TFLITE_CPUINFO_DIR      ?=$(TFLITE_BUILD_DIR)/_deps/cpuinfo-build
+TFLITE_CLOG_DIR         ?=$(TFLITE_BUILD_DIR)/_deps/clog-build
 
 OPENCV_SRC_DIR          ?=/home/craft/workspace/gem5/opencv
-OPENCV_INC_DIR          ?=$(OPENCV_SRC_DIR)/build/install/include/opencv4/
-OPENCV_LIB_DIR          ?=$(OPENCV_SRC_DIR)/build/install/lib/
-OPENCV_LIB_3RDPARTY_DIR ?=$(OPENCV_SRC_DIR)/build/install/lib/opencv4/3rdparty/
+OPENCV_BUILD_DIR        ?=$(OPENCV_SRC_DIR)/build
+OPENCV_INC_DIR          ?=$(OPENCV_BUILD_DIR)/install/include/opencv4/
+OPENCV_LIB_DIR          ?=$(OPENCV_BUILD_DIR)/install/lib/
+OPENCV_LIB_3RDPARTY_DIR ?=$(OPENCV_BUILD_DIR)/install/lib/opencv4/3rdparty/
 
 PHONY: all
 
@@ -64,22 +66,51 @@ LIBS += $(TFLITE_FFT2D_DIR)/libfft2d_fftsg2d.a
 LIBS += $(TFLITE_CPUINFO_DIR)/libcpuinfo.a
 LIBS += $(TFLITE_CLOG_DIR)/libclog.a
 
-LIBS += $(OPENCV_LIB_DIR)/libopencv_world.a
+LIBS += $(OPENCV_LIB_DIR)/libopencv_features2d.a \
+	$(OPENCV_LIB_DIR)/libopencv_imgcodecs.a \
+	$(OPENCV_LIB_DIR)/libopencv_photo.a \
+	$(OPENCV_LIB_DIR)/libopencv_calib3d.a \
+	$(OPENCV_LIB_DIR)/libopencv_flann.a \
+	$(OPENCV_LIB_DIR)/libopencv_imgproc.a \
+	$(OPENCV_LIB_DIR)/libopencv_stitching.a \
+	$(OPENCV_LIB_DIR)/libopencv_gapi.a \
+	$(OPENCV_LIB_DIR)/libopencv_ml.a \
+	$(OPENCV_LIB_DIR)/libopencv_video.a \
+	$(OPENCV_LIB_DIR)/libopencv_dnn.a \
+	$(OPENCV_LIB_DIR)/libopencv_highgui.a \
+	$(OPENCV_LIB_DIR)/libopencv_objdetect.a \
+	$(OPENCV_LIB_DIR)/libopencv_videoio.a \
+	$(OPENCV_LIB_DIR)/libopencv_core.a
 
 LIBS += $(OPENCV_LIB_3RDPARTY_DIR)/liblibjpeg-turbo.a \
 	$(OPENCV_LIB_3RDPARTY_DIR)/liblibpng.a \
-	$(OPENCV_LIB_3RDPARTY_DIR)/libtegra_hal.a \
-	$(OPENCV_LIB_3RDPARTY_DIR)/libzlib.a
+	$(OPENCV_LIB_3RDPARTY_DIR)/libzlib.a \
+	$(OPENCV_LIB_3RDPARTY_DIR)/libade.a \
+	$(OPENCV_LIB_3RDPARTY_DIR)/liblibopenjp2.a \
+	$(OPENCV_LIB_3RDPARTY_DIR)/liblibprotobuf.a \
+	$(OPENCV_LIB_3RDPARTY_DIR)/liblibwebp.a \
+	$(OPENCV_LIB_3RDPARTY_DIR)/liblibtiff.a \
+	$(OPENCV_LIB_3RDPARTY_DIR)/libquirc.a
 
-LIBS += -lstdc++ -lpthread -lm -ldl -lrt -static
+LIBS += -lstdc++ -lpthread -lm -ldl -lrt -latomic -static
 
 INCLUDES := -I. -I$(FLATBUFFERS_INC_DIR) -I$(TFLITE_INC_DIR) -I$(OPENCV_INC_DIR)
 
-CCFLAGS = --std=c++11 -O3 -DNDEBUG -fPIC
+CCFLAGS = -O3 -DNDEBUG -fPIC
 
 CXX := ${TARGET_TOOLCHAIN_PREFIX}g++
 
 COMMON_SRC = model_utils.cc utils.cc
+
+JDSK_DL_ACC ?= no
+ifeq ($(JDSK_DL_ACC), yes)
+  COMMON_SRC +=
+  CCFLAGS += -march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d -mtune=c906 -std=gnu++11
+
+  JDSK_API_LIB_DIR ?= /home/craft/workspace/DNN/XNNPACK-riscv/build/linux/c906-v240/install/lib/
+  LIBS += $(JDSK_API_LIB_DIR)/libXNNPACK.a \
+	$(JDSK_API_LIB_DIR)/libpthreadpool.a
+endif
 
 classification/tflite_classification: classification.cc $(COMMON_SRC)
 	mkdir -p classification
