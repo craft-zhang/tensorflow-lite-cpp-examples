@@ -5,6 +5,8 @@
 
 set -e
 
+make clean
+
 export TARGET_TOOLCHAIN_PREFIX=riscv64-unknown-linux-gnu-
 
 export TFLITE_BUILD_DIR=/home/craft/workspace/gem5/tensorflow_src/buildrv64
