@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TARGET_TOOLCHAIN_PREFIX ?= aarch64-linux-gnu-
+TARGET_TOOLCHAIN_PREFIX ?= riscv64-unknown-linux-gnu-
 
-TF_SRC_DIR              ?=/home/craft/workspace/gem5/tensorflow_src
+TF_SRC_DIR              ?=/home/craft/workspace/DNN/tensorflow
 TFLITE_INC_DIR          ?=$(TF_SRC_DIR)
-TFLITE_BUILD_DIR        ?=$(TF_SRC_DIR)/build
+TFLITE_BUILD_DIR        ?=build_tflite
 FLATBUFFERS_INC_DIR     ?=$(TFLITE_BUILD_DIR)/flatbuffers/include
 TFLITE_LIB_DIR          ?=$(TFLITE_BUILD_DIR)
 TFLITE_FLATBUF_LIB_DIR  ?=$(TFLITE_BUILD_DIR)/_deps/flatbuffers-build
@@ -26,8 +26,11 @@ TFLITE_FFT2D_DIR        ?=$(TFLITE_BUILD_DIR)/_deps/fft2d-build
 TFLITE_CPUINFO_DIR      ?=$(TFLITE_BUILD_DIR)/_deps/cpuinfo-build
 TFLITE_CLOG_DIR         ?=$(TFLITE_BUILD_DIR)/_deps/clog-build
 
+TFLITE_XNNPACK_DIR      ?=$(TFLITE_BUILD_DIR)/_deps/xnnpack-build
+TFLITE_PTHREADPOOL_DIR  ?=$(TFLITE_BUILD_DIR)/pthreadpool
+
 OPENCV_SRC_DIR          ?=/home/craft/workspace/gem5/opencv
-OPENCV_BUILD_DIR        ?=$(OPENCV_SRC_DIR)/build
+OPENCV_BUILD_DIR        ?=build_cv
 OPENCV_INC_DIR          ?=$(OPENCV_BUILD_DIR)/install/include/opencv4/
 OPENCV_LIB_DIR          ?=$(OPENCV_BUILD_DIR)/install/lib/
 OPENCV_LIB_3RDPARTY_DIR ?=$(OPENCV_BUILD_DIR)/install/lib/opencv4/3rdparty/
@@ -59,6 +62,8 @@ LIBS += $(TFLITE_RUY_LIB_DIR)/libruy_ctx.a \
 	$(TFLITE_RUY_LIB_DIR)/libruy_prepare_packed_matrices.a \
 	$(TFLITE_RUY_LIB_DIR)/libruy_denormal.a
 
+LIBS += /home/craft/workspace/DNN/XNNPACK/build/linux/JDSK/libXNNPACK.a
+LIBS += $(TFLITE_PTHREADPOOL_DIR)/libpthreadpool.a
 LIBS += $(TFLITE_FLATBUF_LIB_DIR)/libflatbuffers.a
 LIBS += $(TFLITE_FARMHASH_LIB_DIR)/libfarmhash.a
 LIBS += $(TFLITE_FFT2D_DIR)/libfft2d_fftsg.a
@@ -69,16 +74,12 @@ LIBS += $(TFLITE_CLOG_DIR)/libclog.a
 LIBS += $(OPENCV_LIB_DIR)/libopencv_features2d.a \
 	$(OPENCV_LIB_DIR)/libopencv_imgcodecs.a \
 	$(OPENCV_LIB_DIR)/libopencv_photo.a \
-	$(OPENCV_LIB_DIR)/libopencv_calib3d.a \
 	$(OPENCV_LIB_DIR)/libopencv_flann.a \
 	$(OPENCV_LIB_DIR)/libopencv_imgproc.a \
-	$(OPENCV_LIB_DIR)/libopencv_stitching.a \
-	$(OPENCV_LIB_DIR)/libopencv_gapi.a \
 	$(OPENCV_LIB_DIR)/libopencv_ml.a \
 	$(OPENCV_LIB_DIR)/libopencv_video.a \
 	$(OPENCV_LIB_DIR)/libopencv_dnn.a \
 	$(OPENCV_LIB_DIR)/libopencv_highgui.a \
-	$(OPENCV_LIB_DIR)/libopencv_objdetect.a \
 	$(OPENCV_LIB_DIR)/libopencv_videoio.a \
 	$(OPENCV_LIB_DIR)/libopencv_core.a
 
@@ -96,21 +97,11 @@ LIBS += -lstdc++ -lpthread -lm -ldl -lrt -latomic -static
 
 INCLUDES := -I. -I$(FLATBUFFERS_INC_DIR) -I$(TFLITE_INC_DIR) -I$(OPENCV_INC_DIR)
 
-CCFLAGS = -O3 -DNDEBUG -fPIC
+CCFLAGS = -O3 -DNDEBUG -fPIC -march=rv64gcv -mabi=lp64d -std=gnu++11
 
 CXX := ${TARGET_TOOLCHAIN_PREFIX}g++
 
 COMMON_SRC = model_utils.cc utils.cc
-
-JDSK_DL_ACC ?= no
-ifeq ($(JDSK_DL_ACC), yes)
-  COMMON_SRC +=
-  CCFLAGS += -march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d -mtune=c906 -std=gnu++11
-
-  JDSK_API_LIB_DIR ?= /home/craft/workspace/DNN/XNNPACK-riscv/build/linux/c906-v240/install/lib/
-  LIBS += $(JDSK_API_LIB_DIR)/libXNNPACK.a \
-	$(JDSK_API_LIB_DIR)/libpthreadpool.a
-endif
 
 classification/tflite_classification: classification.cc $(COMMON_SRC)
 	mkdir -p classification
