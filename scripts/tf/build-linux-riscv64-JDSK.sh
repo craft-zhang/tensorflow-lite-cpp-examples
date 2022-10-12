@@ -6,7 +6,6 @@
 
 set -e
 
-# change to your path
 mkdir -p build_tflite
 
 CMAKE_ARGS=()
@@ -26,7 +25,7 @@ CMAKE_ARGS+=("-DHAVE_STD_REGEX=0")
 # install
 CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$(pwd)/tflite")
 CMAKE_ARGS+=("-DTFLITE_ENABLE_INSTALL=ON")
-ABSL_ENABLE_INSTALL
+CMAKE_ARGS+=("ABSL_ENABLE_INSTALL=ON")
 CMAKE_ARGS+=("-DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON")
 CMAKE_ARGS+=("-Dabsl_DIR=$(pwd)/tflite/lib/cmake/absl")
 CMAKE_ARGS+=("-DEigen3_DIR=$(pwd)/tflite/share/eigen3/cmake")
@@ -41,10 +40,10 @@ CMAKE_ARGS+=("-DTFLITE_ENABLE_XNNPACK=ON")
 # Use-specified CMake arguments go last to allow overridding defaults
 CMAKE_ARGS+=($@)
 
-# change to your path
 pushd build_tflite
 
-ccmake ../../tensorflow/tensorflow/lite "${CMAKE_ARGS[@]}"
+# change to your path
+cmake ../../tensorflow/tensorflow/lite "${CMAKE_ARGS[@]}"
 
 cmake --build .
 
