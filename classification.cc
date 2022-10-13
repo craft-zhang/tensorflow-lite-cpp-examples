@@ -16,30 +16,31 @@
  */
 
 #include <getopt.h>
-#include <iostream>
+#include <libgen.h>
+#include <memory.h>
+#include <sys/time.h>
+
+#include <algorithm>
 #include <cstdarg>
 #include <cstdio>
 #include <fstream>
-#include <numeric>
-#include <algorithm>
 #include <functional>
-#include <vector>
+#include <iostream>
 #include <limits>
+#include <numeric>
 #include <stdexcept>
-#include <libgen.h>
 #include <utility>
-#include <sys/time.h>
-
-#include "opencv2/core.hpp"
-#include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/videoio.hpp"
-#include <memory.h>
+#include <vector>
 
 #include "model_utils.h"
-#include "utils.h"
+#include "opencv2/core.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/videoio.hpp"
+#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/model.h"
+#include "utils.h"
 
 using namespace cv;
 using namespace std;
@@ -48,23 +49,19 @@ using namespace std;
  * Iterate through all the lines in file and
  * put them in given vector
  */
-bool getFileContent(std::string fileName, std::vector<std::string> &vecOfStrs)
-{
+bool getFileContent(std::string fileName, std::vector<std::string> &vecOfStrs) {
   // Open the File
   std::ifstream in(fileName.c_str());
   // Check if object is valid
-  if (!in)
-  {
+  if (!in) {
     std::cerr << "Cannot open the File : " << fileName << std::endl;
     return false;
   }
   std::string str;
   // Read the next line from File untill it reaches the end.
-  while (std::getline(in, str))
-  {
+  while (std::getline(in, str)) {
     // Line contains string of length > 0 then save it in vector
-    if (str.size() > 0)
-      vecOfStrs.push_back(str);
+    if (str.size() > 0) vecOfStrs.push_back(str);
   }
   // Close The File
   in.close();
@@ -74,16 +71,16 @@ bool getFileContent(std::string fileName, std::vector<std::string> &vecOfStrs)
 /*
  * Display frames with the classification result
  */
-void DisplayFrames(char *display_win, int input_source, Mat &show_image, std::string &output_labels)
-{
+void DisplayFrames(char *display_win, int input_source, Mat &show_image,
+                   std::string &output_labels) {
   // overlay the display window
   cv::putText(show_image, output_labels.c_str(),
-              cv::Point(32, 32),              // Coordinates
-              cv::FONT_HERSHEY_COMPLEX_SMALL, // Font
-              1.25,                           // Scale. 2.0 = 2x bigger
-              cv::Scalar(0, 0, 0),            // Color
-              1.5,                            // Thickness
-              8);                             // Line type
+              cv::Point(32, 32),               // Coordinates
+              cv::FONT_HERSHEY_COMPLEX_SMALL,  // Font
+              1.25,                            // Scale. 2.0 = 2x bigger
+              cv::Scalar(0, 0, 0),             // Color
+              1.5,                             // Thickness
+              8);                              // Line type
   cv::imshow(display_win, show_image);
 
   if (input_source == INPUT_Image)
@@ -95,28 +92,26 @@ void DisplayFrames(char *display_win, int input_source, Mat &show_image, std::st
 /*
  * Display command line usage
  */
-void display_usage()
-{
+void display_usage() {
 std:
-  cout
-      << "tflite_classification\n"
-      << "--tflite_model, -m: model_name.tflite\n"
-      << "--input_src, -r: [0|1|2] input source: image 0, video 1, camera 2\n"
-      << "--input_path, -i: path of the input image/video or video port for camera, e.g., 1 for /dev/video1\n"
-      << "--labels, -l: labels for the model\n"
-      << "--frame_cnt, -c: the number of frames to be used\n"
-      << "--input_mean, -b: input mean\n"
-      << "--input_std, -s: input standard deviation\n"
-      << "--profiling, -p: [0|1], profiling or not\n"
-      << "--threads, -t: number of threads\n"
-      << "\n";
+  cout << "tflite_classification\n"
+       << "--tflite_model, -m: model_name.tflite\n"
+       << "--input_src, -r: [0|1|2] input source: image 0, video 1, camera 2\n"
+       << "--input_path, -i: path of the input image/video or video port for "
+          "camera, e.g., 1 for /dev/video1\n"
+       << "--labels, -l: labels for the model\n"
+       << "--frame_cnt, -c: the number of frames to be used\n"
+       << "--input_mean, -b: input mean\n"
+       << "--input_std, -s: input standard deviation\n"
+       << "--profiling, -p: [0|1], profiling or not\n"
+       << "--threads, -t: number of threads\n"
+       << "\n";
 }
-
+//  (input - mean) / std
 /*
  * Main function
  */
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   // Set the defaults which can be modified from command line
   std::string model_path = "./mobilenet_v1_1.0_224.tflite";
   std::string input_path = "./grace_hopper.bmp";
@@ -129,8 +124,7 @@ int main(int argc, char **argv)
   bool profiling = false;
 
   int c;
-  while (1)
-  {
+  while (1) {
     static struct option long_options[] = {
         {"frame_cnt", required_argument, nullptr, 'c'},
         {"input_src", required_argument, nullptr, 'r'},
@@ -146,48 +140,45 @@ int main(int argc, char **argv)
     /* getopt_long stores the option index here. */
     int option_index = 0;
 
-    c = getopt_long(argc, argv,
-                    "b:c:i:l:m:p:r:s:t:h", long_options,
+    c = getopt_long(argc, argv, "b:c:i:l:m:p:r:s:t:h", long_options,
                     &option_index);
 
     /* Detect the end of the options. */
-    if (c == -1)
-      break;
+    if (c == -1) break;
 
-    switch (c)
-    {
-    case 'b':
-      input_mean = strtod(optarg, nullptr);
-      break;
-    case 'c':
-      frame_cnt = strtol(optarg, nullptr, 10);
-      break;
-    case 'i':
-      input_path = optarg;
-      break;
-    case 'l':
-      label_path = optarg;
-      break;
-    case 'm':
-      model_path = optarg;
-      break;
-    case 'p':
-      profiling = strtol(optarg, nullptr, 10);
-      break;
-    case 'r':
-      input_source = (eInputType)strtol(optarg, nullptr, 10);
-      break;
-    case 's':
-      input_std = strtod(optarg, nullptr);
-      break;
-    case 't':
-      num_threads = strtol(optarg, nullptr, 10);
-      break;
-    case 'h':
-      display_usage();
-      exit(-1);
-    default:
-      exit(-1);
+    switch (c) {
+      case 'b':
+        input_mean = strtod(optarg, nullptr);
+        break;
+      case 'c':
+        frame_cnt = strtol(optarg, nullptr, 10);
+        break;
+      case 'i':
+        input_path = optarg;
+        break;
+      case 'l':
+        label_path = optarg;
+        break;
+      case 'm':
+        model_path = optarg;
+        break;
+      case 'p':
+        profiling = strtol(optarg, nullptr, 10);
+        break;
+      case 'r':
+        input_source = (eInputType)strtol(optarg, nullptr, 10);
+        break;
+      case 's':
+        input_std = strtod(optarg, nullptr);
+        break;
+      case 't':
+        num_threads = strtol(optarg, nullptr, 10);
+        break;
+      case 'h':
+        display_usage();
+        exit(-1);
+      default:
+        exit(-1);
     }
   }
 
@@ -196,16 +187,34 @@ int main(int argc, char **argv)
   // Read model.
   std::unique_ptr<tflite::FlatBufferModel> model =
       tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
-  if (model == nullptr)
-  {
+  if (model == nullptr) {
     std::cerr << "Fail to build FlatBufferModel from file: " << model_path
               << std::endl;
     std::abort();
   }
+  std::cout << "Loading model done!" << std::endl;
 
   // Build interpreter.
+  // Create TfLite Interpreter
+  // std::unique_ptr<tflite::Interpreter> interpreter;
+  // std::cout << "Loading model done!" << std::endl;
+  // // IMPORTANT: initialize options with
+  // // TfLiteXNNPackDelegateOptionsDefault() for API-compatibility with future
+  // // extensions of the TfLiteXNNPackDelegateOptions structure.
+  // TfLiteXNNPackDelegateOptions xnnpack_options =
+  //     TfLiteXNNPackDelegateOptionsDefault();
+  // xnnpack_options.num_threads = num_threads;
+
+  // TfLiteDelegate *xnnpack_delegate =
+  //     TfLiteXNNPackDelegateCreate(&xnnpack_options);
+  // if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
+  //   // Report error and fall back to another delegate, or the default backend
+  // }
+
+  std::cout << __FILE__ << ":" << __LINE__ << std::endl;
   std::unique_ptr<tflite::Interpreter> interpreter =
       tflite_example::BuildTfliteInterpreter(*model, num_threads);
+  std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
   // Get input dimension from the input tensor metadata
   // assuming one input only
@@ -218,8 +227,7 @@ int main(int argc, char **argv)
   // Setup input
   Mat input_image;
   VideoCapture cap;
-  if (!SetupInput(input_source, input_path, cap, input_image))
-  {
+  if (!SetupInput(input_source, input_path, cap, input_image)) {
     std::abort();
   }
 
@@ -233,55 +241,63 @@ int main(int argc, char **argv)
   bool labels_ok = false;
 
   labels_ok = getFileContent(label_path, labels);
-  if (!labels_ok)
-  {
-    std::cerr << "Fail to read the label file: " << label_path
-              << std::endl;
+  if (!labels_ok) {
+    std::cerr << "Fail to read the label file: " << label_path << std::endl;
     std::abort();
   }
 
   std::cout << "Running inference... " << std::endl;
 
   int frame_index = 0;
-  // Processing loop for preparing the input, running inference, and reporting classification result
-  while (frame_cnt > 0)
-  {
+  // Processing loop for preparing the input, running inference, and reporting
+  // classification result
+  while (frame_cnt > 0) {
     // Collect the frame in NHWC with the wanted size
     std::vector<uint8_t> input_frame;
-    CollectFrames(input_frame, input_source, cap, input_image,
-                  wanted_height, wanted_width, wanted_channels);
+    std::cout << "HWC=" << wanted_height << "-" << wanted_width << "-"
+              << wanted_channels << std::endl;
+    CollectFrames(input_frame, input_source, cap, input_image, wanted_height,
+                  wanted_width, wanted_channels);
 
-    if (input_frame.empty())
-    {
+    if (input_frame.empty()) {
       continue;
     }
 
     // Prepare the input for the inference
     int input = interpreter->inputs()[0];
-    switch (interpreter->tensor(input)->type)
-    {
-    case kTfLiteFloat32:
-      PrepareInput<float>(interpreter->typed_tensor<float>(input), input_frame,
-                          input_number_of_pixels, true, input_mean, input_std);
-      break;
-    case kTfLiteUInt8:
-      PrepareInput<uint8_t>(interpreter->typed_tensor<uint8_t>(input), input_frame,
-                            input_number_of_pixels, false, input_mean, input_std);
-      break;
-    default:
-      cout << "cannot handle input type " << interpreter->tensor(input)->type << " yet" << std::endl;
-      exit(-1);
+    switch (interpreter->tensor(input)->type) {
+      case kTfLiteFloat32:
+        std::cout << "kTfLiteFloat32" << std::endl;
+        PrepareInput<float>(interpreter->typed_tensor<float>(input),
+                            input_frame, input_number_of_pixels, true,
+                            input_mean, input_std);
+        break;
+      case kTfLiteUInt8:
+        std::cout << "kTfLiteUInt8" << std::endl;
+        PrepareInput<uint8_t>(interpreter->typed_tensor<uint8_t>(input),
+                              input_frame, input_number_of_pixels, false,
+                              input_mean, input_std);
+        break;
+      case kTfLiteInt8:
+        std::cout << "kTfLiteInt8" << std::endl;
+        PrepareInput<int8_t>(interpreter->typed_tensor<int8_t>(input),
+                             input_frame, input_number_of_pixels, false,
+                             input_mean, input_std);
+        break;
+      default:
+        cout << "cannot handle input type " << interpreter->tensor(input)->type
+             << " yet" << std::endl;
+        exit(-1);
     }
 
     // Running the inference
     double inference_time_ms;
-    const auto &result = tflite_example::RunInference(interpreter.get(), inference_time_ms);
+    const auto &result =
+        tflite_example::RunInference(interpreter.get(), inference_time_ms);
 
-    if (profiling)
-    {
+    if (profiling) {
       std::cout << "Inference time for frame " << frame_index << ": "
-                << inference_time_ms
-                << " ms" << std::endl;
+                << inference_time_ms << " ms" << std::endl;
     }
 
     // Report the inference output
@@ -293,9 +309,9 @@ int main(int argc, char **argv)
     argmax = std::distance(result.begin(), it);
 
     float prob_threshold = 0.2;
-    if ((argmax < labels.size()) && (*it > prob_threshold))
-    {
-      std::cout << "label: " << labels[argmax] << " with probability " << *it << std::endl;
+    if ((argmax < labels.size()) && (*it > prob_threshold)) {
+      std::cout << "label: " << labels[argmax] << " with probability " << *it
+                << std::endl;
       last_label = labels[argmax];
     }
 
@@ -307,6 +323,10 @@ int main(int argc, char **argv)
   }
 
   std::cout << "Classification complete ! " << std::endl;
+
+  // IMPORTANT: release the interpreter before destroying the delegate
+  interpreter.reset();
+  // TfLiteXNNPackDelegateDelete(xnnpack_delegate);
 
   return 0;
 }

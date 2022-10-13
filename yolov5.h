@@ -26,7 +26,7 @@
 #include <fstream>
 #include <iostream>
 #include <opencv2/core.hpp>
-// #include <opencv2/dnn.hpp>
+#include <opencv2/dnn.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -37,15 +37,6 @@ struct Prediction {
   std::vector<float> scores;
   std::vector<int> labels;
 };
-
-typedef struct BoxInfo {
-  float x;
-  float y;
-  float width;
-  float height;
-  float score;
-  int label;
-} BoxInfo;
 
 class YOLOV5 {
  public:
@@ -60,8 +51,11 @@ class YOLOV5 {
   float confThreshold = 0.5;
   float nmsThreshold = 0.5;
 
+  float mean = 0.f;
+  float std = 255.f;
+
   // number of threads
-  int nthreads = 4;
+  int nthreads = 1;
 
  private:
   // model's
@@ -76,22 +70,12 @@ class YOLOV5 {
   int _in_channels;
   int _in_type;
 
-  // // parameters of interpreter's output
-  // int _out;
-  // TfLiteIntArray* _out_dims;
-  // int  _out_row;
-  // int  _out_colum;
-  // int  _out_type;
-
   // parameters of original image
   int _img_height;
   int _img_width;
 
   // Input of the interpreter
-  uint8_t *_input_8;
-
-  // int _delegate_opt;
-  // TfLiteDelegate *_delegate;
+  float_t *_input_f32;
 
   template <typename T>
   void fill(T *in, cv::Mat &src);
@@ -105,7 +89,4 @@ class YOLOV5 {
                             std::vector<float> &confidences,
                             std::vector<int> &classIds,
                             std::vector<int> &indices);
-  void nms(std::vector<BoxInfo> &BoxInfos);
-  // void nms(std::vector<cv::Rect> &boxesNMS, std::vector<float> &confidences,
-  //          std::vector<int> &classIds, std::vector<int> &indices);
 };

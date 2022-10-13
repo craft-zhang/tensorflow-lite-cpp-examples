@@ -57,24 +57,26 @@ void YOLOV5::loadModel(const std::string path) {
   _in_width = dims->data[2];
   _in_channels = dims->data[3];
   _in_type = _interpreter->tensor(_input)->type;
-  _input_8 = _interpreter->typed_tensor<uint8_t>(_input);
+  _input_f32 = _interpreter->typed_tensor<float_t>(_input);
 
   _interpreter->SetNumThreads(nthreads);
 }
 
 void YOLOV5::preprocess(cv::Mat &image) {
-  cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-  cv::resize(image, image, cv::Size(_in_height, _in_width), cv::INTER_CUBIC);
-  image.convertTo(image, CV_8U);
+  // cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+  // cv::resize(image, image, cv::Size(_in_height, _in_width), cv::INTER_CUBIC);
+  cv::resize(image, image, cv::Size(_in_height, _in_width));
+  cv::imwrite("image.jpg", image);
+  // image.convertTo(image, CV_32FC3);
 }
 
+// TODO: step
 template <typename T>
 void YOLOV5::fill(T *in, cv::Mat &src) {
-  int n = 0, nc = src.channels(), ne = src.elemSize();
-  for (int y = 0; y < src.rows; ++y)
-    for (int x = 0; x < src.cols; ++x)
-      for (int c = 0; c < nc; ++c)
-        in[n++] = src.data[y * src.step + x * ne + c];
+  for (size_t i = 0; i < src.cols * src.rows * src.channels(); i++) {
+    in[i] = ((float_t)(src.data[i]) - mean) / std;
+    // in[i] = (float_t)(src.data[i]);
+  }
 }
 
 std::vector<std::vector<float>> YOLOV5::tensorToVector2D(
@@ -85,57 +87,18 @@ std::vector<std::vector<float>> YOLOV5::tensorToVector2D(
   for (int32_t i = 0; i < row; i++) {
     std::vector<float> _tem;
     for (int j = 0; j < colum; j++) {
+#if 0
       float val_float =
           (((int32_t)pOutputTensor->data.uint8[i * colum + j]) - zero_point) *
           scale;
+#else
+      float val_float = pOutputTensor->data.f[i * colum + j];
+#endif
       _tem.push_back(val_float);
     }
     v.push_back(_tem);
   }
   return v;
-}
-
-void YOLOV5::nms(std::vector<BoxInfo> &BoxInfos) {
-  std::sort(BoxInfos.begin(), BoxInfos.end(),
-            [](BoxInfo a, BoxInfo b) { return a.score > b.score; });
-  std::vector<float> vArea(BoxInfos.size());
-  for (int i = 0; i < int(BoxInfos.size()); ++i) {
-    vArea[i] = BoxInfos[i].width * BoxInfos[i].height;
-  }
-
-  std::vector<bool> isSuppressed(BoxInfos.size(), false);
-  for (int i = 0; i < int(BoxInfos.size()); ++i) {
-    if (isSuppressed[i]) {
-      continue;
-    }
-    for (int j = i + 1; j < int(BoxInfos.size()); ++j) {
-      if (isSuppressed[j]) {
-        continue;
-      }
-      float xx1 = (std::max)(BoxInfos[i].x, BoxInfos[j].x);
-      float yy1 = (std::max)(BoxInfos[i].y, BoxInfos[j].y);
-      float xx2 = (std::min)(BoxInfos[i].x + BoxInfos[i].width,
-                             BoxInfos[j].x + BoxInfos[j].width);
-      float yy2 = (std::min)(BoxInfos[i].y + BoxInfos[i].height,
-                             BoxInfos[j].y + BoxInfos[j].height);
-
-      float w = (std::max)(float(0), xx2 - xx1 + 1);
-      float h = (std::max)(float(0), yy2 - yy1 + 1);
-      float inter = w * h;
-      float ovr = inter / (vArea[i] + vArea[j] - inter);
-
-      if (ovr >= this->nmsThreshold) {
-        isSuppressed[j] = true;
-      }
-    }
-  }
-  // return post_nms;
-  int idx_t = 0;
-  BoxInfos.erase(std::remove_if(BoxInfos.begin(), BoxInfos.end(),
-                                [&idx_t, &isSuppressed](const BoxInfo &f) {
-                                  return isSuppressed[idx_t++];
-                                }),
-                 BoxInfos.end());
 }
 
 void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
@@ -146,13 +109,17 @@ void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
                                   std::vector<int> &indices)
 
 {
-  std::vector<BoxInfo> boxesNMS;
+  std::vector<cv::Rect> boxesNMS;
   int max_wh = 40960;
   std::vector<float> scores;
   double confidence;
   cv::Point classId;
 
   for (int i = 0; i < row; i++) {
+    if (predV[i][4] > 0.5) {
+      printf("rowid:%d score:%f\n", i, predV[i][4]);
+    }
+
     if (predV[i][4] > confThreshold) {
       // height--> image.rows,  width--> image.cols;
       int left = (predV[i][0] - predV[i][2] / 2) * _img_width;
@@ -166,33 +133,20 @@ void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
       }
 
       cv::minMaxLoc(scores, 0, &confidence, 0, &classId);
+
       scores.clear();
-      int c = classId.x * max_wh;
-      if (confidence > confThreshold) {
-        // boxes.push_back(cv::Rect(left, top, w, h));
-        // confidences.push_back(confidence);
-        // classIds.push_back(classId.x);
-        BoxInfo boxInfo;
-        boxInfo.x = left;
-        boxInfo.y = top;
-        boxInfo.width = w;
-        boxInfo.height = h;
-        boxInfo.score = confidence;
-        boxInfo.label = classId.x;
-        boxesNMS.push_back(boxInfo);
+      // int c = classId.x * max_wh;
+      if (confidence > confThreshold * confThreshold) {
+        printf("classid:%d score:%f\n", classId.x, confidence);
+        boxes.push_back(cv::Rect(left, top, w, h));
+        confidences.push_back(confidence);
+        classIds.push_back(classId.x);
+        boxesNMS.push_back(cv::Rect(left, top, w, h));
       }
     }
   }
-  // cv::dnn::NMSBoxes(boxesNMS, confidences, confThreshold, nmsThreshold,
-  //                   indices);
-  nms(boxesNMS);
-
-  for (size_t i = 0; i < boxesNMS.size(); i++) {
-    boxes.push_back(cv::Rect(boxesNMS[i].x, boxesNMS[i].y, boxesNMS[i].width,
-                             boxesNMS[i].height));
-    confidences.push_back(boxesNMS[i].score);
-    classIds.push_back(boxesNMS[i].label);
-  }
+  cv::dnn::NMSBoxes(boxesNMS, confidences, confThreshold, nmsThreshold,
+                    indices);
 }
 
 void YOLOV5::run(cv::Mat frame, Prediction &out_pred) {
@@ -200,7 +154,7 @@ void YOLOV5::run(cv::Mat frame, Prediction &out_pred) {
   _img_width = frame.cols;
 
   preprocess(frame);
-  fill(_input_8, frame);
+  fill(_input_f32, frame);
 
   // Inference
   TfLiteStatus status = _interpreter->Invoke();
@@ -211,8 +165,8 @@ void YOLOV5::run(cv::Mat frame, Prediction &out_pred) {
 
   int _out = _interpreter->outputs()[0];
   TfLiteIntArray *_out_dims = _interpreter->tensor(_out)->dims;
-  int _out_row = _out_dims->data[1];  // 25200
-  int _out_colum = _out_dims->data[2];
+  int _out_row = _out_dims->data[1];    // 25200
+  int _out_colum = _out_dims->data[2];  // 85
   // class number + 5 ---> 85     bbox cond class
   // int _out_type  = _interpreter->tensor(_out)->type;
 
@@ -229,9 +183,9 @@ void YOLOV5::run(cv::Mat frame, Prediction &out_pred) {
   nonMaximumSupprition(predV, _out_row, _out_colum, boxes, confidences,
                        classIds, indices);
 
-  // for (int i = 0; i < indices.size(); i++) {
-  //   out_pred.boxes.push_back(boxes[indices[i]]);
-  //   out_pred.scores.push_back(confidences[indices[i]]);
-  //   out_pred.labels.push_back(classIds[indices[i]]);
-  // }
+  for (int i = 0; i < indices.size(); i++) {
+    out_pred.boxes.push_back(boxes[indices[i]]);
+    out_pred.scores.push_back(confidences[indices[i]]);
+    out_pred.labels.push_back(classIds[indices[i]]);
+  }
 };

@@ -62,7 +62,8 @@ LIBS += $(TFLITE_RUY_LIB_DIR)/libruy_ctx.a \
 	$(TFLITE_RUY_LIB_DIR)/libruy_prepare_packed_matrices.a \
 	$(TFLITE_RUY_LIB_DIR)/libruy_denormal.a
 
-LIBS += /home/craft/workspace/DNN/XNNPACK/build/linux/JDSK/libXNNPACK.a
+# LIBS += /home/craft/workspace/DNN/XNNPACK/build/linux/JDSK/libXNNPACK.a
+LIBS += $(TFLITE_XNNPACK_DIR)/libXNNPACK.a
 LIBS += $(TFLITE_PTHREADPOOL_DIR)/libpthreadpool.a
 LIBS += $(TFLITE_FLATBUF_LIB_DIR)/libflatbuffers.a
 LIBS += $(TFLITE_FARMHASH_LIB_DIR)/libfarmhash.a
@@ -97,11 +98,11 @@ LIBS += -lstdc++ -lpthread -lm -ldl -lrt -latomic -static
 
 INCLUDES := -I. -I$(FLATBUFFERS_INC_DIR) -I$(TFLITE_INC_DIR) -I$(OPENCV_INC_DIR)
 
-CCFLAGS = -O3 -DNDEBUG -fPIC -march=rv64gcv -mabi=lp64d -std=gnu++11
+CCFLAGS = -g -Og -DDEBUG -fPIC -march=rv64gcv -mabi=lp64d -std=gnu++11
 
 CXX := ${TARGET_TOOLCHAIN_PREFIX}g++
 
-COMMON_SRC = model_utils.cc utils.cc
+COMMON_SRC = model_utils.cc utils.cc nms.cpp
 
 classification/tflite_classification: classification.cc $(COMMON_SRC)
 	mkdir -p classification

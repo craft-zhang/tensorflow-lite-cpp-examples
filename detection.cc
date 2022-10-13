@@ -68,15 +68,15 @@ std:
  */
 int main(int argc, char **argv) {
   // Set the defaults which can be modified from command line
-  std::string model_path = "./deeplabv3_257_mv_gpu.tflite";
-  std::string label_path = "./deeplabv3_257_mv_gpu.tflite";
-  std::string input_path = "./bird_segmentation.bmp";
+  std::string model_path = "yolov5s_ultralytics_640_quantized.tflite";
+  std::string label_path = "labels.txt";
+  std::string input_path = "grace_hopper.bmp";
   eInputType input_source = INPUT_Image;
   int frame_cnt = 1;
   int num_threads = 1;
-  float input_mean = 127.5f;
-  float input_std = 127.5f;
-  bool profiling = false;
+  float input_mean = 0.f;
+  float input_std = 1.f;
+  bool profiling = true;
 
   int c;
   while (1) {
