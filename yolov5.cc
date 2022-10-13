@@ -63,7 +63,7 @@ void YOLOV5::loadModel(const std::string path) {
 }
 
 void YOLOV5::preprocess(cv::Mat &image) {
-  // cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+  cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
   // cv::resize(image, image, cv::Size(_in_height, _in_width), cv::INTER_CUBIC);
   cv::resize(image, image, cv::Size(_in_height, _in_width));
   cv::imwrite("image.jpg", image);
@@ -149,7 +149,7 @@ void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
                     indices);
 }
 
-void YOLOV5::run(cv::Mat frame, Prediction &out_pred) {
+void YOLOV5::run(cv::Mat &frame, Prediction &out_pred) {
   _img_height = frame.rows;
   _img_width = frame.cols;
 

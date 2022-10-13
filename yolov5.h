@@ -43,7 +43,7 @@ class YOLOV5 {
   // Take a model path as string
   void loadModel(const std::string path);
   // Take an image and return a prediction
-  void run(cv::Mat image, Prediction &out_pred);
+  void run(cv::Mat &image, Prediction &out_pred);
 
   void getLabelsName(std::string path, std::vector<std::string> &labelNames);
 

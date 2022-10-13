@@ -160,6 +160,8 @@ int main(int argc, char **argv) {
 
   auto start = std::chrono::high_resolution_clock::now();
   // Predict on the input image
+  cv::Mat show_image;
+  input_image.copyTo(show_image);
   model.run(input_image, out_pred);
   auto stop = std::chrono::high_resolution_clock::now();
   auto duration =
@@ -176,13 +178,13 @@ int main(int argc, char **argv) {
     auto box = boxes[i];
     auto score = scores[i];
     auto label = labels[i];
-    cv::rectangle(input_image, box, cv::Scalar(255, 0, 0), 2);
-    cv::putText(input_image, labelNames[label], cv::Point(box.x, box.y),
+    cv::rectangle(show_image, box, cv::Scalar(255, 0, 0), 2);
+    cv::putText(show_image, labelNames[label], cv::Point(box.x, box.y),
                 cv::FONT_HERSHEY_COMPLEX, 1.0, cv::Scalar(255, 255, 255), 1,
                 cv::LINE_AA);
   }
 
-  cv::imwrite("out.png", input_image);
+  cv::imwrite("out.png", show_image);
 
   std::cout << "detection completes! " << std::endl;
 
