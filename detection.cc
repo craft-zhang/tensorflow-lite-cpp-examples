@@ -49,7 +49,7 @@ using namespace std;
  */
 void display_usage() {
 std:
-  cout << "tflite_segmentation\n"
+  cout << "tflite_detection\n"
        << "--tflite_model, -m: model_name.tflite\n"
        << "--label_file, -l: label_file\n"
        << "--input_src, -r: [0|1|2] input source: image 0, video 1, camera 2\n"
@@ -99,41 +99,42 @@ int main(int argc, char **argv) {
                     &option_index);
 
     /* Detect the end of the options. */
-    if (c == -1) break;
+    if (c == -1)
+      break;
 
     switch (c) {
-      case 'b':
-        input_mean = strtod(optarg, nullptr);
-        break;
-      case 'c':
-        frame_cnt = strtol(optarg, nullptr, 10);
-        break;
-      case 'i':
-        input_path = optarg;
-        break;
-      case 'm':
-        model_path = optarg;
-        break;
-      case 'l':
-        label_path = optarg;
-        break;
-      case 'p':
-        profiling = strtol(optarg, nullptr, 10);
-        break;
-      case 'r':
-        input_source = (eInputType)strtol(optarg, nullptr, 10);
-        break;
-      case 's':
-        input_std = strtod(optarg, nullptr);
-        break;
-      case 't':
-        num_threads = strtol(optarg, nullptr, 10);
-        break;
-      case 'h':
-        display_usage();
-        exit(-1);
-      default:
-        exit(-1);
+    case 'b':
+      input_mean = strtod(optarg, nullptr);
+      break;
+    case 'c':
+      frame_cnt = strtol(optarg, nullptr, 10);
+      break;
+    case 'i':
+      input_path = optarg;
+      break;
+    case 'm':
+      model_path = optarg;
+      break;
+    case 'l':
+      label_path = optarg;
+      break;
+    case 'p':
+      profiling = strtol(optarg, nullptr, 10);
+      break;
+    case 'r':
+      input_source = (eInputType)strtol(optarg, nullptr, 10);
+      break;
+    case 's':
+      input_std = strtod(optarg, nullptr);
+      break;
+    case 't':
+      num_threads = strtol(optarg, nullptr, 10);
+      break;
+    case 'h':
+      display_usage();
+      exit(-1);
+    default:
+      exit(-1);
     }
   }
 

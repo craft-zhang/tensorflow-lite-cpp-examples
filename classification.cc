@@ -15,6 +15,13 @@
  * limitations under the License.
  */
 
+/*
+rm classification/tflite_classification & make -f Makefile-rv
+qemu-riscv64 classification/tflite_classification -m \
+classification/imagenet_mobilenet_v1_100_224_classification.tflite -i \
+classification/dog.jpg -l classification/labels.txt -c 1 -b 0 -s 255 -t 1
+*/
+
 #include <getopt.h>
 #include <libgen.h>
 #include <memory.h>
@@ -61,7 +68,8 @@ bool getFileContent(std::string fileName, std::vector<std::string> &vecOfStrs) {
   // Read the next line from File untill it reaches the end.
   while (std::getline(in, str)) {
     // Line contains string of length > 0 then save it in vector
-    if (str.size() > 0) vecOfStrs.push_back(str);
+    if (str.size() > 0)
+      vecOfStrs.push_back(str);
   }
   // Close The File
   in.close();
@@ -75,12 +83,12 @@ void DisplayFrames(char *display_win, int input_source, Mat &show_image,
                    std::string &output_labels) {
   // overlay the display window
   cv::putText(show_image, output_labels.c_str(),
-              cv::Point(32, 32),               // Coordinates
-              cv::FONT_HERSHEY_COMPLEX_SMALL,  // Font
-              1.25,                            // Scale. 2.0 = 2x bigger
-              cv::Scalar(0, 0, 0),             // Color
-              1.5,                             // Thickness
-              8);                              // Line type
+              cv::Point(32, 32),              // Coordinates
+              cv::FONT_HERSHEY_COMPLEX_SMALL, // Font
+              1.25,                           // Scale. 2.0 = 2x bigger
+              cv::Scalar(0, 0, 0),            // Color
+              1.5,                            // Thickness
+              8);                             // Line type
   cv::imshow(display_win, show_image);
 
   if (input_source == INPUT_Image)
@@ -144,41 +152,42 @@ int main(int argc, char **argv) {
                     &option_index);
 
     /* Detect the end of the options. */
-    if (c == -1) break;
+    if (c == -1)
+      break;
 
     switch (c) {
-      case 'b':
-        input_mean = strtod(optarg, nullptr);
-        break;
-      case 'c':
-        frame_cnt = strtol(optarg, nullptr, 10);
-        break;
-      case 'i':
-        input_path = optarg;
-        break;
-      case 'l':
-        label_path = optarg;
-        break;
-      case 'm':
-        model_path = optarg;
-        break;
-      case 'p':
-        profiling = strtol(optarg, nullptr, 10);
-        break;
-      case 'r':
-        input_source = (eInputType)strtol(optarg, nullptr, 10);
-        break;
-      case 's':
-        input_std = strtod(optarg, nullptr);
-        break;
-      case 't':
-        num_threads = strtol(optarg, nullptr, 10);
-        break;
-      case 'h':
-        display_usage();
-        exit(-1);
-      default:
-        exit(-1);
+    case 'b':
+      input_mean = strtod(optarg, nullptr);
+      break;
+    case 'c':
+      frame_cnt = strtol(optarg, nullptr, 10);
+      break;
+    case 'i':
+      input_path = optarg;
+      break;
+    case 'l':
+      label_path = optarg;
+      break;
+    case 'm':
+      model_path = optarg;
+      break;
+    case 'p':
+      profiling = strtol(optarg, nullptr, 10);
+      break;
+    case 'r':
+      input_source = (eInputType)strtol(optarg, nullptr, 10);
+      break;
+    case 's':
+      input_std = strtod(optarg, nullptr);
+      break;
+    case 't':
+      num_threads = strtol(optarg, nullptr, 10);
+      break;
+    case 'h':
+      display_usage();
+      exit(-1);
+    default:
+      exit(-1);
     }
   }
 
@@ -266,28 +275,27 @@ int main(int argc, char **argv) {
     // Prepare the input for the inference
     int input = interpreter->inputs()[0];
     switch (interpreter->tensor(input)->type) {
-      case kTfLiteFloat32:
-        std::cout << "kTfLiteFloat32" << std::endl;
-        PrepareInput<float>(interpreter->typed_tensor<float>(input),
-                            input_frame, input_number_of_pixels, true,
+    case kTfLiteFloat32:
+      std::cout << "kTfLiteFloat32" << std::endl;
+      PrepareInput<float>(interpreter->typed_tensor<float>(input), input_frame,
+                          input_number_of_pixels, true, input_mean, input_std);
+      break;
+    case kTfLiteUInt8:
+      std::cout << "kTfLiteUInt8" << std::endl;
+      PrepareInput<uint8_t>(interpreter->typed_tensor<uint8_t>(input),
+                            input_frame, input_number_of_pixels, false,
                             input_mean, input_std);
-        break;
-      case kTfLiteUInt8:
-        std::cout << "kTfLiteUInt8" << std::endl;
-        PrepareInput<uint8_t>(interpreter->typed_tensor<uint8_t>(input),
-                              input_frame, input_number_of_pixels, false,
-                              input_mean, input_std);
-        break;
-      case kTfLiteInt8:
-        std::cout << "kTfLiteInt8" << std::endl;
-        PrepareInput<int8_t>(interpreter->typed_tensor<int8_t>(input),
-                             input_frame, input_number_of_pixels, false,
-                             input_mean, input_std);
-        break;
-      default:
-        cout << "cannot handle input type " << interpreter->tensor(input)->type
-             << " yet" << std::endl;
-        exit(-1);
+      break;
+    case kTfLiteInt8:
+      std::cout << "kTfLiteInt8" << std::endl;
+      PrepareInput<int8_t>(interpreter->typed_tensor<int8_t>(input),
+                           input_frame, input_number_of_pixels, false,
+                           input_mean, input_std);
+      break;
+    default:
+      cout << "cannot handle input type " << interpreter->tensor(input)->type
+           << " yet" << std::endl;
+      exit(-1);
     }
 
     // Running the inference

@@ -21,12 +21,14 @@ void YOLOV5::getLabelsName(std::string path,
   // Open the File
   std::ifstream in(path.c_str());
   // Check if object is valid
-  if (!in) throw std::runtime_error("Can't open ");
+  if (!in)
+    throw std::runtime_error("Can't open ");
   std::string str;
   // Read the next line from File until it reaches the end.
   while (std::getline(in, str)) {
     // Line contains string of length > 0 then save it in vector
-    if (str.size() > 0) labelNames.push_back(str);
+    if (str.size() > 0)
+      labelNames.push_back(str);
   }
   // Close The File
   in.close();
@@ -66,21 +68,21 @@ void YOLOV5::preprocess(cv::Mat &image) {
   cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
   // cv::resize(image, image, cv::Size(_in_height, _in_width), cv::INTER_CUBIC);
   cv::resize(image, image, cv::Size(_in_height, _in_width));
-  cv::imwrite("image.jpg", image);
+  // cv::imwrite("image.jpg", image);
   // image.convertTo(image, CV_32FC3);
 }
 
 // TODO: step
-template <typename T>
-void YOLOV5::fill(T *in, cv::Mat &src) {
+template <typename T> void YOLOV5::fill(T *in, cv::Mat &src) {
   for (size_t i = 0; i < src.cols * src.rows * src.channels(); i++) {
     in[i] = ((float_t)(src.data[i]) - mean) / std;
     // in[i] = (float_t)(src.data[i]);
   }
 }
 
-std::vector<std::vector<float>> YOLOV5::tensorToVector2D(
-    TfLiteTensor *pOutputTensor, const int &row, const int &colum) {
+std::vector<std::vector<float>>
+YOLOV5::tensorToVector2D(TfLiteTensor *pOutputTensor, const int &row,
+                         const int &colum) {
   auto scale = pOutputTensor->params.scale;
   auto zero_point = pOutputTensor->params.zero_point;
   std::vector<std::vector<float>> v;
@@ -157,6 +159,7 @@ void YOLOV5::run(cv::Mat &frame, Prediction &out_pred) {
   fill(_input_f32, frame);
 
   // Inference
+  std::cout << "\nRun inference!!\n";
   TfLiteStatus status = _interpreter->Invoke();
   if (status != kTfLiteOk) {
     std::cout << "\nFailed to run inference!!\n";
@@ -165,8 +168,8 @@ void YOLOV5::run(cv::Mat &frame, Prediction &out_pred) {
 
   int _out = _interpreter->outputs()[0];
   TfLiteIntArray *_out_dims = _interpreter->tensor(_out)->dims;
-  int _out_row = _out_dims->data[1];    // 25200
-  int _out_colum = _out_dims->data[2];  // 85
+  int _out_row = _out_dims->data[1];   // 25200
+  int _out_colum = _out_dims->data[2]; // 85
   // class number + 5 ---> 85     bbox cond class
   // int _out_type  = _interpreter->tensor(_out)->type;
 
