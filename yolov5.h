@@ -39,7 +39,7 @@ struct Prediction {
 };
 
 class YOLOV5 {
- public:
+public:
   // Take a model path as string
   void loadModel(const std::string path);
   // Take an image and return a prediction
@@ -48,16 +48,16 @@ class YOLOV5 {
   void getLabelsName(std::string path, std::vector<std::string> &labelNames);
 
   // thresh hold
-  float confThreshold = 0.5;
-  float nmsThreshold = 0.5;
+  float _conf_threshold = 0.5;
+  float _nms_threshold = 0.5;
 
-  float mean = 0.f;
-  float std = 255.f;
+  float _mean = 0.f;
+  float _std = 255.f;
 
   // number of threads
-  int nthreads = 1;
+  const int _n_threads = 1;
 
- private:
+  // private:
   // model's
   std::unique_ptr<tflite::FlatBufferModel> _model;
   std::unique_ptr<tflite::Interpreter> _interpreter;
@@ -74,19 +74,19 @@ class YOLOV5 {
   int _img_height;
   int _img_width;
 
+  int _out_row;
+  int _out_colum;
+  int _out_channel;
+
   // Input of the interpreter
   float_t *_input_f32;
 
-  template <typename T>
-  void fill(T *in, cv::Mat &src);
+  template <typename T> void fill(T *in, cv::Mat &src);
   void preprocess(cv::Mat &image);
-  std::vector<std::vector<float>> tensorToVector2D(TfLiteTensor *pOutputTensor,
-                                                   const int &row,
-                                                   const int &colum);
-  void nonMaximumSupprition(std::vector<std::vector<float>> &predV,
-                            const int &row, const int &colum,
-                            std::vector<cv::Rect> &boxes,
-                            std::vector<float> &confidences,
-                            std::vector<int> &classIds,
-                            std::vector<int> &indices);
+  virtual std::vector<std::vector<float>> tensorToVector2D();
+  virtual void nonMaximumSupprition(std::vector<std::vector<float>> &predV,
+                                    std::vector<cv::Rect> &boxes,
+                                    std::vector<float> &confidences,
+                                    std::vector<int> &classIds,
+                                    std::vector<int> &indices);
 };

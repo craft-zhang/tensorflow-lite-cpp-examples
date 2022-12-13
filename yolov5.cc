@@ -38,6 +38,7 @@ void YOLOV5::loadModel(const std::string path) {
   _model = tflite::FlatBufferModel::BuildFromFile(path.c_str());
   if (!_model) {
     std::cout << "\nFailed to load the model.\n" << std::endl;
+    std::cout << __FILE__ << ": " << __LINE__ << std::endl;
     exit(1);
   } else {
     std::cout << "\nModel loaded successfully.\n";
@@ -47,6 +48,7 @@ void YOLOV5::loadModel(const std::string path) {
   TfLiteStatus status = _interpreter->AllocateTensors();
   if (status != kTfLiteOk) {
     std::cout << "\nFailed to allocate the memory for tensors.\n" << std::endl;
+    std::cout << __FILE__ << ": " << __LINE__ << std::endl;
     exit(1);
   } else {
     std::cout << "\nMemory allocated for tensors.\n";
@@ -60,51 +62,95 @@ void YOLOV5::loadModel(const std::string path) {
   _in_channels = dims->data[3];
   _in_type = _interpreter->tensor(_input)->type;
   _input_f32 = _interpreter->typed_tensor<float_t>(_input);
-
-  _interpreter->SetNumThreads(nthreads);
+  std::cout << "YOLO Model Input Shape:[1][" << _in_height << "][" << _in_width
+            << "][" << _in_channels << "]\n";
+  _interpreter->SetNumThreads(_n_threads);
 }
 
 void YOLOV5::preprocess(cv::Mat &image) {
-  cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-  // cv::resize(image, image, cv::Size(_in_height, _in_width), cv::INTER_CUBIC);
-  cv::resize(image, image, cv::Size(_in_height, _in_width));
-  // cv::imwrite("image.jpg", image);
-  // image.convertTo(image, CV_32FC3);
-}
-
-// TODO: step
-template <typename T> void YOLOV5::fill(T *in, cv::Mat &src) {
-  for (size_t i = 0; i < src.cols * src.rows * src.channels(); i++) {
-    in[i] = ((float_t)(src.data[i]) - mean) / std;
-    // in[i] = (float_t)(src.data[i]);
+  if (image.data) {
+    std::cout << "Cvt Color Space to RGB\n";
+    cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+    std::cout << "Resize to fit input Shape\n";
+    cv::resize(image, image, cv::Size(_in_height, _in_width));
+    // cv::imwrite("image.jpg", image);
+    // image.convertTo(image, CV_32FC3);
+  } else {
+    std::cout << "input image is empty!\n";
+    std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+    exit(-1);
   }
 }
 
-std::vector<std::vector<float>>
-YOLOV5::tensorToVector2D(TfLiteTensor *pOutputTensor, const int &row,
-                         const int &colum) {
-  auto scale = pOutputTensor->params.scale;
-  auto zero_point = pOutputTensor->params.zero_point;
-  std::vector<std::vector<float>> v;
-  for (int32_t i = 0; i < row; i++) {
-    std::vector<float> _tem;
-    for (int j = 0; j < colum; j++) {
-#if 0
-      float val_float =
-          (((int32_t)pOutputTensor->data.uint8[i * colum + j]) - zero_point) *
-          scale;
-#else
-      float val_float = pOutputTensor->data.f[i * colum + j];
-#endif
-      _tem.push_back(val_float);
+template <typename T> void YOLOV5::fill(T *in, cv::Mat &src) {
+  if (in != NULL && src.data != NULL) {
+    uchar *ptr = src.data;
+    for (size_t i = 0; i < src.rows; i++) {
+      for (size_t j = 0; j < src.cols * 3; j++) {
+        in[i * src.cols * 3 + j] = ((float_t)(ptr[j]) - _mean) / _std;
+      }
+      ptr += src.step;
     }
-    v.push_back(_tem);
+  } else {
+    std::cout << "input image or input tensor is empty!\n";
+    std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+    exit(-1);
+  }
+}
+
+std::vector<std::vector<float>> YOLOV5::tensorToVector2D() {
+  int out = _interpreter->outputs()[0];
+  TfLiteIntArray *out_dims = _interpreter->tensor(out)->dims;
+  int out_batch = out_dims->data[0];
+  _out_row = out_dims->data[1];
+  _out_colum = out_dims->data[2];
+  // class number + 5 ---> 85  bbox cond class
+  std::cout << "YOLO Model Output Shape:[" << out_batch << "][" << _out_row
+            << "][" << _out_colum << "]\n";
+
+  TfLiteTensor *pOutputTensor = NULL;
+  if (_interpreter->outputs().size() == 1) {
+    pOutputTensor = _interpreter->tensor(_interpreter->outputs()[0]);
+  } else {
+    std::cout << "yolov5 don't support this model!\n";
+    std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+    exit(-1);
+  }
+
+  std::vector<std::vector<float>> v;
+
+  if (pOutputTensor->type == kTfLiteInt8) {
+    auto scale = pOutputTensor->params.scale;
+    auto zero_point = pOutputTensor->params.zero_point;
+    for (int32_t i = 0; i < _out_row; i++) {
+      std::vector<float> _tem;
+      for (int j = 0; j < _out_colum; j++) {
+        float val_float =
+            (((int32_t)pOutputTensor->data.int8[i * _out_colum + j]) -
+             zero_point) *
+            scale;
+        _tem.push_back(val_float);
+      }
+      v.push_back(_tem);
+    }
+  } else if (pOutputTensor->type == kTfLiteFloat32) {
+    for (int32_t i = 0; i < _out_row; i++) {
+      std::vector<float> _tem;
+      for (int j = 0; j < _out_colum; j++) {
+        float val_float = pOutputTensor->data.f[i * _out_colum + j];
+        _tem.push_back(val_float);
+      }
+      v.push_back(_tem);
+    }
+  } else {
+    std::cout << "Unsupported output type!\n";
+    std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+    exit(-1);
   }
   return v;
 }
 
 void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
-                                  const int &row, const int &colum,
                                   std::vector<cv::Rect> &boxes,
                                   std::vector<float> &confidences,
                                   std::vector<int> &classIds,
@@ -112,24 +158,23 @@ void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
 
 {
   std::vector<cv::Rect> boxesNMS;
-  int max_wh = 40960;
   std::vector<float> scores;
   double confidence;
   cv::Point classId;
 
-  for (int i = 0; i < row; i++) {
+  for (int i = 0; i < _out_row; i++) {
     if (predV[i][4] > 0.5) {
       printf("rowid:%d score:%f\n", i, predV[i][4]);
     }
 
-    if (predV[i][4] > confThreshold) {
+    if (predV[i][4] > _conf_threshold) {
       // height--> image.rows,  width--> image.cols;
       int left = (predV[i][0] - predV[i][2] / 2) * _img_width;
       int top = (predV[i][1] - predV[i][3] / 2) * _img_height;
       int w = predV[i][2] * _img_width;
       int h = predV[i][3] * _img_height;
 
-      for (int j = 5; j < colum; j++) {
+      for (int j = 5; j < _out_colum; j++) {
         // # conf = obj_conf * cls_conf
         scores.push_back(predV[i][j] * predV[i][4]);
       }
@@ -137,9 +182,8 @@ void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
       cv::minMaxLoc(scores, 0, &confidence, 0, &classId);
 
       scores.clear();
-      // int c = classId.x * max_wh;
-      if (confidence > confThreshold * confThreshold) {
-        printf("classid:%d score:%f\n", classId.x, confidence);
+
+      if (confidence > _conf_threshold * _conf_threshold) {
         boxes.push_back(cv::Rect(left, top, w, h));
         confidences.push_back(confidence);
         classIds.push_back(classId.x);
@@ -147,48 +191,57 @@ void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
       }
     }
   }
-  cv::dnn::NMSBoxes(boxesNMS, confidences, confThreshold, nmsThreshold,
+  cv::dnn::NMSBoxes(boxesNMS, confidences, _conf_threshold, _nms_threshold,
                     indices);
 }
 
 void YOLOV5::run(cv::Mat &frame, Prediction &out_pred) {
-  _img_height = frame.rows;
-  _img_width = frame.cols;
+  do {
+    if (!frame.data) {
+      std::cout << "input image is empty!\n";
+      std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+      exit(-1);
+    }
 
-  preprocess(frame);
-  fill(_input_f32, frame);
+    _img_height = frame.rows;
+    _img_width = frame.cols;
 
-  // Inference
-  std::cout << "\nRun inference!!\n";
-  TfLiteStatus status = _interpreter->Invoke();
-  if (status != kTfLiteOk) {
-    std::cout << "\nFailed to run inference!!\n";
-    exit(1);
-  }
+    preprocess(frame);
+    fill(_input_f32, frame);
 
-  int _out = _interpreter->outputs()[0];
-  TfLiteIntArray *_out_dims = _interpreter->tensor(_out)->dims;
-  int _out_row = _out_dims->data[1];   // 25200
-  int _out_colum = _out_dims->data[2]; // 85
-  // class number + 5 ---> 85     bbox cond class
-  // int _out_type  = _interpreter->tensor(_out)->type;
+    // Inference
+    std::cout << "Run inference!!\n";
+    TfLiteStatus status = _interpreter->Invoke();
+    if (status != kTfLiteOk) {
+      std::cout << "\nFailed to run inference!!\n";
+      std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+      exit(-1);
+    }
 
-  TfLiteTensor *pOutputTensor =
-      _interpreter->tensor(_interpreter->outputs()[0]);
-  std::vector<std::vector<float>> predV =
-      tensorToVector2D(pOutputTensor, _out_row, _out_colum);
+    for (size_t i = 0; i < _interpreter->outputs().size(); i++) {
+      TfLiteIntArray *out_dims =
+          _interpreter->tensor(_interpreter->outputs()[i])->dims;
+      int out_batch = out_dims->data[0];
+      int out_row = out_dims->data[1];
+      int out_colum = out_dims->data[2];
+      int out_channel = out_dims->data[3];
+      std::cout << "YOLO Model Output Shape:[" << out_batch << "][" << out_row
+                << "][" << out_colum << "][" << out_channel << "]\n";
+    }
 
-  std::vector<int> indices;
-  std::vector<int> classIds;
-  std::vector<float> confidences;
-  std::vector<cv::Rect> boxes;
+    std::vector<std::vector<float>> predV = tensorToVector2D();
 
-  nonMaximumSupprition(predV, _out_row, _out_colum, boxes, confidences,
-                       classIds, indices);
+    std::vector<int> indices;
+    std::vector<int> classIds;
+    std::vector<float> confidences;
+    std::vector<cv::Rect> boxes;
 
-  for (int i = 0; i < indices.size(); i++) {
-    out_pred.boxes.push_back(boxes[indices[i]]);
-    out_pred.scores.push_back(confidences[indices[i]]);
-    out_pred.labels.push_back(classIds[indices[i]]);
-  }
+    nonMaximumSupprition(predV, boxes, confidences, classIds, indices);
+
+    for (int i = 0; i < indices.size(); i++) {
+      out_pred.boxes.push_back(boxes[indices[i]]);
+      out_pred.scores.push_back(confidences[indices[i]]);
+      out_pred.labels.push_back(classIds[indices[i]]);
+    }
+  } while (0);
 };
