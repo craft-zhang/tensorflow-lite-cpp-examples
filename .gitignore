@@ -56,3 +56,4 @@ dkms.conf
 *.swp
 tflite_*
 build*/
+m5out/

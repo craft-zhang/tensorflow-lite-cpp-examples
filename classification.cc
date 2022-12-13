@@ -16,10 +16,38 @@
  */
 
 /*
-rm classification/tflite_classification & make -f Makefile-rv
+rm -f classification/tflite_classification && make -f Makefile-rv
+
 qemu-riscv64 classification/tflite_classification -m \
 classification/imagenet_mobilenet_v1_100_224_classification.tflite -i \
 classification/dog.jpg -l classification/labels.txt -c 1 -b 0 -s 255 -t 1
+# label: Blenheim spaniel with probability 18.3755
+
+qemu-riscv64 classification/tflite_classification -m \
+classification/imagenet_mobilenet_v2_100_224_classification.tflite -i \
+classification/dog.jpg -l classification/labels.txt -c 1 -b 0 -s 255 -t 1
+# label: Blenheim spaniel with probability 9.8589
+
+qemu-riscv64 classification/tflite_classification -m \
+classification/imagenet_inception_v1_classification_5.tflite -i \
+classification/dog.jpg -l classification/labels.txt -c 1 -b 0 -s 255 -t 1
+# label: Blenheim spaniel with probability 10.9008
+
+qemu-riscv64 classification/tflite_classification -m \
+classification/imagenet_inception_v2_classification_5.tflite -i \
+classification/dog.jpg -l classification/labels.txt -c 1 -b 0 -s 255 -t 1
+# label: Blenheim spaniel with probability 11.0233 有bug
+
+qemu-riscv64 classification/tflite_classification -m \
+classification/imagenet_resnet_v1_50_classification_5.tflite -i \
+classification/dog.jpg -l classification/labels.txt -c 1 -b 0 -s 255 -t 1
+# label: Blenheim spaniel with probability 16.8781
+
+qemu-riscv64 classification/tflite_classification -m \
+classification/imagenet_resnet_v2_50_classification_5.tflite -i \
+classification/dog.jpg -l classification/labels.txt -c 1 -b 0 -s 255 -t 1
+# label: Blenheim spaniel with probability 19.5378
+
 */
 
 #include <getopt.h>
@@ -115,6 +143,23 @@ std:
        << "--threads, -t: number of threads\n"
        << "\n";
 }
+
+#ifdef MEM_PROFILE
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern size_t packed_weight_in_byte;
+extern size_t packed_feature_in_byte;
+
+extern size_t packed_weight_access_in_byte;
+extern size_t packed_feature_access_in_byte;
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+
 //  (input - mean) / std
 /*
  * Main function
@@ -332,7 +377,18 @@ int main(int argc, char **argv) {
 
   std::cout << "Classification complete ! " << std::endl;
 
-  // IMPORTANT: release the interpreter before destroying the delegate
+#ifdef MEM_PROFILE
+  std::cout << "packed_weight_in_byte = " << packed_weight_in_byte << std::endl
+            << "packed_feature_in_byte = " << packed_feature_in_byte
+            << std::endl
+            << "packed_weight_access_in_byte = " << packed_weight_access_in_byte
+            << std::endl
+            << "packed_feature_access_in_byte = "
+            << packed_feature_access_in_byte << std::endl;
+#endif
+
+  // IMPORTANT: release the interpreter before destroying the
+  // delegate
   interpreter.reset();
   // TfLiteXNNPackDelegateDelete(xnnpack_delegate);
 
