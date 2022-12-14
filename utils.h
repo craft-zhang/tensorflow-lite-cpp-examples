@@ -47,4 +47,4 @@ void PrepareInput(T *out, std::vector<uint8_t> &input,
   }
 }
 
-#endif  // UTILS_H_
+#endif // UTILS_H_

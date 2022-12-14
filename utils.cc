@@ -29,7 +29,7 @@ bool SetupInput(eInputType input_source, string input_path, VideoCapture &cap,
   if (input_source == INPUT_Image) {
     // Read image input
     input_image = imread(input_path);
-    if (!input_image.data)  // Check for invalid input
+    if (!input_image.data) // Check for invalid input
     {
       cout << "Could not open or find the image" << std::endl;
       return false;
@@ -84,12 +84,12 @@ void CollectFrames(std::vector<uint8_t> &output, int input_source,
   if (input_source != INPUT_Image) {
     if (cap.grab()) {
       if (cap.retrieve(in_image)) {
-        if (input_source == INPUT_Camera) {  // Crop central square portion
+        if (input_source == INPUT_Camera) { // Crop central square portion
           int loc_xmin = (in_image.size().width - in_image.size().height) /
-                         2;  // Central position
+                         2; // Central position
           int loc_ymin = 0;
-          int loc_w = in_image.size().height;  // Set the width to height to get
-                                               // the square cropping
+          int loc_w = in_image.size().height; // Set the width to height to get
+                                              // the square cropping
           int loc_h = in_image.size().height;
           // do cropping and resize
           cv::resize(in_image(Rect(loc_xmin, loc_ymin, loc_w, loc_h)), image,
@@ -110,7 +110,8 @@ void CollectFrames(std::vector<uint8_t> &output, int input_source,
     frame_retrieved = true;
   }
 
-  if (!frame_retrieved) return;
+  if (!frame_retrieved)
+    return;
 
   Mat *spl = new Mat[channels];
   split(image, spl);
