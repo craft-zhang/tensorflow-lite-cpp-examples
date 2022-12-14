@@ -7,7 +7,6 @@ std::vector<std::vector<float>> YOLOV3::tensorToVector2D() {
     std::cout << __FILE__ << ": " << __LINE__ << std::endl;
     exit(-1);
   }
-  const size_t num_anchors = 3;
   int masks[3][3] = {
       {6, 7, 8},
       {3, 4, 5},
@@ -30,15 +29,16 @@ std::vector<std::vector<float>> YOLOV3::tensorToVector2D() {
     if (pOutputTensor->type == kTfLiteFloat32) {
       for (size_t i = 0; i < _out_row; i++) {
         for (size_t j = 0; j < _out_colum; j++) {
-          for (size_t k = 0; k < num_anchors; k++) {
+          for (size_t k = 0; k < _num_anchors; k++) {
             std::vector<float> vtem;
-            for (int l = 0; l < _out_channel / num_anchors; l++) {
+            for (int l = 0; l < _out_channel / _num_anchors; l++) {
               float val_float =
                   pOutputTensor->data
                       .f[i * _out_colum * _out_channel + j * _out_channel +
-                         k * _out_channel / num_anchors + l];
+                         k * _out_channel / _num_anchors + l];
               if (l != 2 && l != 3) {
-                val_float = 1. / (1. + exp(-val_float)); // logistic
+                val_float =
+                    1. / (1. + exp(-val_float)); // logistic (redundancy)
               }
               vtem.push_back(val_float);
             }
@@ -78,7 +78,7 @@ void YOLOV3::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
       int w = predV[i][2] * _img_width;
       int h = predV[i][3] * _img_height;
 
-      for (int j = 5; j < 85; j++) {
+      for (int j = 5; j < _out_channel / _num_anchors; j++) {
         // # conf = obj_conf * cls_conf
         scores.push_back(predV[i][j] * predV[i][4]);
       }

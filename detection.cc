@@ -39,10 +39,21 @@
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/model.h"
 #include "utils.h"
+#include "yolov3.h"
 #include "yolov5.h"
 
 using namespace cv;
 using namespace std;
+
+/*
+qemu-riscv64 detection/tflite_detection -m \
+detection/yolov5s_ultralytics_640_quantized.tflite -i detection/bus.jpg -l \
+detection/labels.txt -c 1 -b 0 -s 255 -t 1 -v 5
+
+qemu-riscv64 detection/tflite_detection -m \
+detection/yolov3_keras_416_quantized.tflite -i detection/bus.jpg -l \
+detection/labels.txt -c 1 -b 0 -s 255 -t 1 -v 3
+*/
 
 /*
  * Display command line usage
@@ -60,6 +71,7 @@ std:
        << "--input_std, -s: input standard deviation\n"
        << "--profiling, -p: [0|1], profiling or not\n"
        << "--threads, -t: number of threads\n"
+       << "--model-version, -v: yolo version\n"
        << "\n";
 }
 
@@ -72,6 +84,7 @@ int main(int argc, char **argv) {
   std::string label_path = "labels.txt";
   std::string input_path = "grace_hopper.bmp";
   eInputType input_source = INPUT_Image;
+  int yolo_version = 5;
   int frame_cnt = 1;
   int num_threads = 1;
   float input_mean = 0.f;
@@ -90,12 +103,13 @@ int main(int argc, char **argv) {
         {"threads", required_argument, nullptr, 't'},
         {"input_mean", required_argument, nullptr, 'b'},
         {"input_std", required_argument, nullptr, 's'},
+        {"--model-version", required_argument, nullptr, 'v'},
         {nullptr, 0, nullptr, 0}};
 
     /* getopt_long stores the option index here. */
     int option_index = 0;
 
-    c = getopt_long(argc, argv, "b:c:i:m:p:r:s:t:h", long_options,
+    c = getopt_long(argc, argv, "b:c:i:m:l:p:r:s:t:v:h", long_options,
                     &option_index);
 
     /* Detect the end of the options. */
@@ -130,6 +144,9 @@ int main(int argc, char **argv) {
     case 't':
       num_threads = strtol(optarg, nullptr, 10);
       break;
+    case 'v':
+      yolo_version = strtol(optarg, nullptr, 10);
+      break;
     case 'h':
       display_usage();
       exit(-1);
@@ -138,16 +155,25 @@ int main(int argc, char **argv) {
     }
   }
 
-  YOLOV5 model;
+  YOLOV5 *model = NULL;
+  if (yolo_version == 3) {
+    model = new YOLOV3;
+  } else {
+    model = new YOLOV5;
+  }
+  if (!model) {
+    exit(-1);
+  }
+
   Prediction out_pred;
   std::vector<std::string> labelNames;
 
   std::cout << "Loading model... " << std::endl;
 
   // Read model.
-  model.loadModel(model_path);
+  model->loadModel(model_path);
 
-  model.getLabelsName(label_path, labelNames);
+  model->getLabelsName(label_path, labelNames);
   std::cout << "\nLabel Count: " << labelNames.size() << "\n" << std::endl;
 
   // Setup input
@@ -163,7 +189,7 @@ int main(int argc, char **argv) {
   // Predict on the input image
   cv::Mat show_image;
   input_image.copyTo(show_image);
-  model.run(input_image, out_pred);
+  model->run(input_image, out_pred);
   auto stop = std::chrono::high_resolution_clock::now();
   auto duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -188,6 +214,6 @@ int main(int argc, char **argv) {
   cv::imwrite("out.png", show_image);
 
   std::cout << "detection completes! " << std::endl;
-
+  delete model;
   return 0;
 }

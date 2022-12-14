@@ -112,9 +112,9 @@ segmentation/tflite_segmentation: segmentation.cc $(COMMON_SRC)
 	mkdir -p segmentation
 	$(CXX) segmentation.cc $(COMMON_SRC) -o segmentation/tflite_segmentation $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
 
-detection/tflite_detection: detection.cc yolov5.cc $(COMMON_SRC)
+detection/tflite_detection: detection.cc yolov5.cc yolov3.cc $(COMMON_SRC)
 	mkdir -p detection
-	$(CXX) detection.cc yolov5.cc $(COMMON_SRC) -o detection/tflite_detection $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
+	$(CXX) detection.cc yolov5.cc yolov3.cc $(COMMON_SRC) -o detection/tflite_detection $(LDFLAGS) $(LIBS) $(CXXFLAGS) $(CCFLAGS) $(INCLUDES)
 
 clean:
 	rm -rf classification/tflite_classification segmentation/tflite_segmentation detection/tflite_detection

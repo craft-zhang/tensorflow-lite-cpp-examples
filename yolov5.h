@@ -57,7 +57,6 @@ public:
   // number of threads
   const int _n_threads = 1;
 
-  // private:
   // model's
   std::unique_ptr<tflite::FlatBufferModel> _model;
   std::unique_ptr<tflite::Interpreter> _interpreter;

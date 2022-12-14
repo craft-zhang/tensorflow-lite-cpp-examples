@@ -20,7 +20,7 @@
 
 class YOLOV3 : public YOLOV5 {
 public:
-  // private:
+  const size_t _num_anchors{3};
   virtual std::vector<std::vector<float>> tensorToVector2D() override;
   virtual void nonMaximumSupprition(std::vector<std::vector<float>> &predV,
                                     std::vector<cv::Rect> &boxes,

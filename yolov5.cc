@@ -163,12 +163,7 @@ void YOLOV5::nonMaximumSupprition(std::vector<std::vector<float>> &predV,
   cv::Point classId;
 
   for (int i = 0; i < _out_row; i++) {
-    if (predV[i][4] > 0.5) {
-      printf("rowid:%d score:%f\n", i, predV[i][4]);
-    }
-
     if (predV[i][4] > _conf_threshold) {
-      // height--> image.rows,  width--> image.cols;
       int left = (predV[i][0] - predV[i][2] / 2) * _img_width;
       int top = (predV[i][1] - predV[i][3] / 2) * _img_height;
       int w = predV[i][2] * _img_width;
