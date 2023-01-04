@@ -61,7 +61,17 @@ void YOLOV5::loadModel(const std::string path) {
   _in_width = dims->data[2];
   _in_channels = dims->data[3];
   _in_type = _interpreter->tensor(_input)->type;
-  _input_f32 = _interpreter->typed_tensor<float_t>(_input);
+
+  std::cout << "YOLO Model Input type: " << _in_type << "\n";
+  if (_in_type == kTfLiteFloat32) {
+    _input_f32 = _interpreter->typed_tensor<float_t>(_input);
+  } else if (_in_type == kTfLiteUInt8) {
+    _input_u8 = _interpreter->typed_tensor<uint8_t>(_input);
+  } else {
+    std::cout << "YOLO Model Input type donot support yet\n";
+    exit(0);
+  }
+
   std::cout << "YOLO Model Input Shape:[1][" << _in_height << "][" << _in_width
             << "][" << _in_channels << "]\n";
   _interpreter->SetNumThreads(_n_threads);
@@ -87,7 +97,7 @@ template <typename T> void YOLOV5::fill(T *in, cv::Mat &src) {
     uchar *ptr = src.data;
     for (size_t i = 0; i < src.rows; i++) {
       for (size_t j = 0; j < src.cols * 3; j++) {
-        in[i * src.cols * 3 + j] = ((float_t)(ptr[j]) - _mean) / _std;
+        in[i * src.cols * 3 + j] = ((T)(ptr[j]) - _mean) / _std;
       }
       ptr += src.step;
     }
@@ -202,7 +212,11 @@ void YOLOV5::run(cv::Mat &frame, Prediction &out_pred) {
     _img_width = frame.cols;
 
     preprocess(frame);
-    fill(_input_f32, frame);
+    if (_in_type == kTfLiteFloat32) {
+      fill(_input_f32, frame);
+    } else if (_in_type == kTfLiteUInt8) {
+      fill(_input_u8, frame);
+    }
 
     // Inference
     std::cout << "Run inference!!\n";
@@ -216,12 +230,15 @@ void YOLOV5::run(cv::Mat &frame, Prediction &out_pred) {
     for (size_t i = 0; i < _interpreter->outputs().size(); i++) {
       TfLiteIntArray *out_dims =
           _interpreter->tensor(_interpreter->outputs()[i])->dims;
+      TfLiteType out_type =
+          _interpreter->tensor(_interpreter->outputs()[i])->type;
       int out_batch = out_dims->data[0];
       int out_row = out_dims->data[1];
       int out_colum = out_dims->data[2];
       int out_channel = out_dims->data[3];
       std::cout << "YOLO Model Output Shape:[" << out_batch << "][" << out_row
-                << "][" << out_colum << "][" << out_channel << "]\n";
+                << "][" << out_colum << "][" << out_channel << "] "
+                << " type: [" << out_type << "]\n";
     }
 
     std::vector<std::vector<float>> predV = tensorToVector2D();

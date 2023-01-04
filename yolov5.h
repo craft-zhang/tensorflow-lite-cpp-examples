@@ -41,9 +41,9 @@ struct Prediction {
 class YOLOV5 {
 public:
   // Take a model path as string
-  void loadModel(const std::string path);
+  virtual void loadModel(const std::string path);
   // Take an image and return a prediction
-  void run(cv::Mat &image, Prediction &out_pred);
+  virtual void run(cv::Mat &image, Prediction &out_pred);
 
   void getLabelsName(std::string path, std::vector<std::string> &labelNames);
 
@@ -79,9 +79,10 @@ public:
 
   // Input of the interpreter
   float_t *_input_f32;
+  uint8_t *_input_u8;
 
   template <typename T> void fill(T *in, cv::Mat &src);
-  void preprocess(cv::Mat &image);
+  virtual void preprocess(cv::Mat &image);
   virtual std::vector<std::vector<float>> tensorToVector2D();
   virtual void nonMaximumSupprition(std::vector<std::vector<float>> &predV,
                                     std::vector<cv::Rect> &boxes,

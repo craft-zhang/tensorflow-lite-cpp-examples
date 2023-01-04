@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "mobilenetssd.h"
 #include "model_utils.h"
 #include "opencv2/core.hpp"
 #include "opencv2/highgui.hpp"
@@ -51,8 +52,12 @@ detection/yolov5s_ultralytics_640_quantized.tflite -i detection/bus.jpg -l \
 detection/labels.txt -c 1 -b 0 -s 255 -t 1 -v 5
 
 qemu-riscv64 detection/tflite_detection -m \
-detection/yolov3_keras_416_quantized.tflite -i detection/bus.jpg -l \
+detection/yolov3_keras_416_quantized.tflite -i detection/grace_hopper.bmp -l \
 detection/labels.txt -c 1 -b 0 -s 255 -t 1 -v 3
+
+qemu-riscv64 detection/tflite_detection -m \
+/ssd_mobilenet_v2_2.tflite -i detection/zidane.jpg \
+-l detection/coco.txt -c 1 -b 0 -s 255 -t 1 -v ssd
 */
 
 /*
@@ -71,7 +76,7 @@ std:
        << "--input_std, -s: input standard deviation\n"
        << "--profiling, -p: [0|1], profiling or not\n"
        << "--threads, -t: number of threads\n"
-       << "--model-version, -v: yolo version\n"
+       << "--model-version, -v: yolo version or ssd\n"
        << "\n";
 }
 
@@ -158,9 +163,12 @@ int main(int argc, char **argv) {
   YOLOV5 *model = NULL;
   if (yolo_version == 3) {
     model = new YOLOV3;
-  } else {
+  } else if (yolo_version == 5) {
     model = new YOLOV5;
+  } else {
+    model = new MobileNetSSD;
   }
+
   if (!model) {
     exit(-1);
   }
@@ -205,7 +213,7 @@ int main(int argc, char **argv) {
     auto box = boxes[i];
     auto score = scores[i];
     auto label = labels[i];
-    cv::rectangle(show_image, box, cv::Scalar(255, 0, 0), 2);
+    cv::rectangle(show_image, box, cv::Scalar(0, 255, 0), 2);
     cv::putText(show_image, labelNames[label], cv::Point(box.x, box.y),
                 cv::FONT_HERSHEY_COMPLEX, 1.0, cv::Scalar(255, 255, 255), 1,
                 cv::LINE_AA);
