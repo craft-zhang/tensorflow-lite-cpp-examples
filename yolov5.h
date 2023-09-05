@@ -41,7 +41,7 @@ struct Prediction {
 class YOLOV5 {
 public:
   // Take a model path as string
-  virtual void loadModel(const std::string path);
+  virtual void loadModel(const std::string path, const int thread_num = 1);
   // Take an image and return a prediction
   virtual void run(cv::Mat &image, Prediction &out_pred);
 
@@ -55,7 +55,7 @@ public:
   float _std = 255.f;
 
   // number of threads
-  const int _n_threads = 1;
+  int _n_threads = 1;
 
   // model's
   std::unique_ptr<tflite::FlatBufferModel> _model;
@@ -81,7 +81,22 @@ public:
   float_t *_input_f32;
   uint8_t *_input_u8;
 
-  template <typename T> void fill(T *in, cv::Mat &src);
+  // template <typename T> void fill(T *in, cv::Mat &src);
+  template <typename T> void fill(T *in, cv::Mat &src) {
+    if (in != NULL && src.data != NULL) {
+      uchar *ptr = src.data;
+      for (size_t i = 0; i < src.rows; i++) {
+        for (size_t j = 0; j < src.cols * 3; j++) {
+          in[i * src.cols * 3 + j] = ((T)(ptr[j]) - _mean) / _std;
+        }
+        ptr += src.step;
+      }
+    } else {
+      std::cout << "input image or input tensor is empty!\n";
+      std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+      exit(-1);
+    }
+  }
   virtual void preprocess(cv::Mat &image);
   virtual std::vector<std::vector<float>> tensorToVector2D();
   virtual void nonMaximumSupprition(std::vector<std::vector<float>> &predV,

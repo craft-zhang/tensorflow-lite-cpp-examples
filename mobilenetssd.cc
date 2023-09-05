@@ -34,12 +34,21 @@ void MobileNetSSD::run(cv::Mat &frame, Prediction &out_pred) {
     }
 
     // Inference
-    std::cout << "Run inference!!\n";
-    TfLiteStatus status = _interpreter->Invoke();
-    if (status != kTfLiteOk) {
-      std::cout << "\nFailed to run inference!!\n";
-      std::cout << __FILE__ << ": " << __LINE__ << std::endl;
-      exit(-1);
+    for (size_t i = 0; i < 5; i++) {
+      std::cout << "Run inference!!\n";
+      auto start = std::chrono::high_resolution_clock::now();
+      TfLiteStatus status = _interpreter->Invoke();
+      if (status != kTfLiteOk) {
+        std::cout << "\nFailed to run inference!!\n";
+        std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+        exit(-1);
+      }
+      auto stop = std::chrono::high_resolution_clock::now();
+      auto duration =
+          std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+      std::cout << "\nModel run time 'milliseconds': " << duration.count()
+                << "\n"
+                << std::endl;
     }
 
     for (size_t i = 0; i < _interpreter->outputs().size(); i++) {

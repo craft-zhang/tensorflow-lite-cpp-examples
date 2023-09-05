@@ -34,8 +34,9 @@ void YOLOV5::getLabelsName(std::string path,
   in.close();
 }
 
-void YOLOV5::loadModel(const std::string path) {
+void YOLOV5::loadModel(const std::string path, const int thread_num) {
   _model = tflite::FlatBufferModel::BuildFromFile(path.c_str());
+  _n_threads = thread_num;
   if (!_model) {
     std::cout << "\nFailed to load the model.\n" << std::endl;
     std::cout << __FILE__ << ": " << __LINE__ << std::endl;
@@ -87,22 +88,6 @@ void YOLOV5::preprocess(cv::Mat &image) {
     // image.convertTo(image, CV_32FC3);
   } else {
     std::cout << "input image is empty!\n";
-    std::cout << __FILE__ << ": " << __LINE__ << std::endl;
-    exit(-1);
-  }
-}
-
-template <typename T> void YOLOV5::fill(T *in, cv::Mat &src) {
-  if (in != NULL && src.data != NULL) {
-    uchar *ptr = src.data;
-    for (size_t i = 0; i < src.rows; i++) {
-      for (size_t j = 0; j < src.cols * 3; j++) {
-        in[i * src.cols * 3 + j] = ((T)(ptr[j]) - _mean) / _std;
-      }
-      ptr += src.step;
-    }
-  } else {
-    std::cout << "input image or input tensor is empty!\n";
     std::cout << __FILE__ << ": " << __LINE__ << std::endl;
     exit(-1);
   }
@@ -219,14 +204,22 @@ void YOLOV5::run(cv::Mat &frame, Prediction &out_pred) {
     }
 
     // Inference
-    std::cout << "Run inference!!\n";
-    TfLiteStatus status = _interpreter->Invoke();
-    if (status != kTfLiteOk) {
-      std::cout << "\nFailed to run inference!!\n";
-      std::cout << __FILE__ << ": " << __LINE__ << std::endl;
-      exit(-1);
+    for (size_t i = 0; i < 5; i++) {
+      std::cout << "Run inference!!\n";
+      auto start = std::chrono::high_resolution_clock::now();
+      TfLiteStatus status = _interpreter->Invoke();
+      if (status != kTfLiteOk) {
+        std::cout << "\nFailed to run inference!!\n";
+        std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+        exit(-1);
+      }
+      auto stop = std::chrono::high_resolution_clock::now();
+      auto duration =
+          std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+      std::cout << "\nModel run time 'milliseconds': " << duration.count()
+                << "\n"
+                << std::endl;
     }
-
     for (size_t i = 0; i < _interpreter->outputs().size(); i++) {
       TfLiteIntArray *out_dims =
           _interpreter->tensor(_interpreter->outputs()[i])->dims;

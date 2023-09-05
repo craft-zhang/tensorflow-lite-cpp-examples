@@ -47,17 +47,17 @@ using namespace cv;
 using namespace std;
 
 /*
-qemu-riscv64 detection/tflite_detection -m \
+rm -f out.png && qemu-riscv64 detection/tflite_detection -m \
 detection/yolov5s_ultralytics_640_quantized.tflite -i detection/bus.jpg -l \
 detection/labels.txt -c 1 -b 0 -s 255 -t 1 -v 5
 
-qemu-riscv64 detection/tflite_detection -m \
-detection/yolov3_keras_416_quantized.tflite -i detection/grace_hopper.bmp -l \
+rm -f out.png && qemu-riscv64 detection/tflite_detection -m \
+detection/yolov3_keras_416_quantized.tflite -i detection/bus.jpg -l \
 detection/labels.txt -c 1 -b 0 -s 255 -t 1 -v 3
 
-qemu-riscv64 detection/tflite_detection -m \
-/ssd_mobilenet_v2_2.tflite -i detection/zidane.jpg \
--l detection/coco.txt -c 1 -b 0 -s 255 -t 1 -v ssd
+rm -f out.png && qemu-riscv64 detection/tflite_detection -m \
+detection/ssd_mobilenet_v2_2.tflite -i detection/bus.jpg -l \
+detection/coco.txt -c 1 -b 0 -s 255 -t 1 -v ssd
 */
 
 /*
@@ -76,7 +76,7 @@ std:
        << "--input_std, -s: input standard deviation\n"
        << "--profiling, -p: [0|1], profiling or not\n"
        << "--threads, -t: number of threads\n"
-       << "--model-version, -v: yolo version or ssd\n"
+       << "--model_version, -v: yolo version or ssd\n"
        << "\n";
 }
 
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
         {"threads", required_argument, nullptr, 't'},
         {"input_mean", required_argument, nullptr, 'b'},
         {"input_std", required_argument, nullptr, 's'},
-        {"--model-version", required_argument, nullptr, 'v'},
+        {"model_version", required_argument, nullptr, 'v'},
         {nullptr, 0, nullptr, 0}};
 
     /* getopt_long stores the option index here. */
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
   std::cout << "Loading model... " << std::endl;
 
   // Read model.
-  model->loadModel(model_path);
+  model->loadModel(model_path, num_threads);
 
   model->getLabelsName(label_path, labelNames);
   std::cout << "\nLabel Count: " << labelNames.size() << "\n" << std::endl;
@@ -193,16 +193,18 @@ int main(int argc, char **argv) {
 
   std::cout << "Running inference... " << std::endl;
 
-  auto start = std::chrono::high_resolution_clock::now();
   // Predict on the input image
   cv::Mat show_image;
   input_image.copyTo(show_image);
+
+  // auto start = std::chrono::high_resolution_clock::now();
   model->run(input_image, out_pred);
-  auto stop = std::chrono::high_resolution_clock::now();
-  auto duration =
-      std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "\nModel run time 'milliseconds': " << duration.count() << "\n"
-            << std::endl;
+  // auto stop = std::chrono::high_resolution_clock::now();
+  // auto duration =
+  //     std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+  // std::cout << "\nModel run time 'milliseconds': " << duration.count() <<
+  // "\n"
+  //           << std::endl;
 
   // add the bbox to the image and save it
   auto boxes = out_pred.boxes;
