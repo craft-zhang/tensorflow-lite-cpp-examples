@@ -14,8 +14,8 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
 # 增加SVE支持
-set(CMAKE_C_FLAGS "-march=armv8-a+sve")
-set(CMAKE_CXX_FLAGS "-march=armv8-a+sve")
+set(CMAKE_C_FLAGS "-mcpu=cortex-a55")
+set(CMAKE_CXX_FLAGS "-mcpu=cortex-a55")
 
 # cache flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")

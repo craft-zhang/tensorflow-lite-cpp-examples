@@ -57,3 +57,8 @@ dkms.conf
 tflite_*
 build*/
 m5out/
+fpga*
+dump*
+log*
+out*
+run*

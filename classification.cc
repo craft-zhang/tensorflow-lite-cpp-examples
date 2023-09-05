@@ -38,6 +38,11 @@ classification/imagenet_inception_v2_classification_5.tflite -i \
 classification/dog.jpg -l classification/labels.txt -c 1 -b 0 -s 255 -t 1
 # label: Blenheim spaniel with probability 11.0233 有bug
 
+qemu-riscv64 classification/tflite_classification_arm -m \
+classification/imagenet_inception_v3_classification_5.tflite -i \
+classification/dog.jpg -l classification/labels.txt -c 1 -b 0 -s 255 -t 1
+# label: Blenheim spaniel with probability 22.116
+
 qemu-riscv64 classification/tflite_classification -m \
 classification/imagenet_resnet_v1_50_classification_5.tflite -i \
 classification/dog.jpg -l classification/labels.txt -c 1 -b 0 -s 255 -t 1
@@ -131,20 +136,26 @@ void DisplayFrames(char *display_win, int input_source, Mat &show_image,
 void display_usage() {
 std:
   cout << "tflite_classification\n"
-       << "--tflite_model, -m: model_name.tflite\n"
-       << "--input_src, -r: [0|1|2] input source: image 0, video 1, camera 2\n"
+       << "--frame_cnt, -c: the number of frames to be used\n"
        << "--input_path, -i: path of the input image/video or video port for "
           "camera, e.g., 1 for /dev/video1\n"
        << "--labels, -l: labels for the model\n"
-       << "--frame_cnt, -c: the number of frames to be used\n"
+       << "--tflite_model, -m: model_name.tflite\n"
+       << "--profiling, -p: [0|1], profiling or not\n"
+       << "--input_src, -r: [0|1|2] input source: image 0, video 1, camera 2\n"
        << "--input_mean, -b: input mean\n"
        << "--input_std, -s: input standard deviation\n"
-       << "--profiling, -p: [0|1], profiling or not\n"
        << "--threads, -t: number of threads\n"
+       << "--feature_copy, -f: feature copy to tcm\n"
+       << "--weight_copy, -w: weight copy to tcm\n"
+       << "--profile, -d: profile all layer\n"
+       << "--conv_profile, -P: profile convlution\n"
+       << "--freq, -F: cpu freq MHz\n"
+       << "--affinity, -a: process affinity\n"
+       << "--only_conv, -C: only run convlution\n"
+       << "--only_misc, -M: only run other op except convlution\n"
        << "\n";
 }
-
-#ifdef MEM_PROFILE
 
 #ifdef __cplusplus
 extern "C" {
@@ -154,10 +165,21 @@ extern size_t packed_feature_in_byte;
 
 extern size_t packed_weight_access_in_byte;
 extern size_t packed_feature_access_in_byte;
+
+extern bool PROFILE;
+extern bool CONV_PROFILE;
+
+extern long FREQ;
+
+extern bool FEA_CPY2TCM;
+extern bool FILTER_CPY2TCM;
+
+extern bool ONLY_CONV;
+extern bool ONLY_MISC;
+
+extern long ELAPSEDTIME;
 #ifdef __cplusplus
 }
-#endif
-
 #endif
 
 //  (input - mean) / std
@@ -180,30 +202,35 @@ int main(int argc, char **argv) {
   while (1) {
     static struct option long_options[] = {
         {"frame_cnt", required_argument, nullptr, 'c'},
-        {"input_src", required_argument, nullptr, 'r'},
         {"input_path", required_argument, nullptr, 'i'},
         {"labels", required_argument, nullptr, 'l'},
         {"tflite_model", required_argument, nullptr, 'm'},
         {"profiling", required_argument, nullptr, 'p'},
-        {"threads", required_argument, nullptr, 't'},
+        {"input_src", required_argument, nullptr, 'r'},
         {"input_mean", required_argument, nullptr, 'b'},
         {"input_std", required_argument, nullptr, 's'},
+        {"threads", required_argument, nullptr, 't'},
+        {"feature_copy", required_argument, nullptr, 'f'},
+        {"weight_copy", required_argument, nullptr, 'w'},
+        {"profile", required_argument, nullptr, 'd'},
+        {"conv_profile", required_argument, nullptr, 'P'},
+        {"freq", required_argument, nullptr, 'F'},
+        {"affinity", required_argument, nullptr, 'a'},
+        {"only_conv", required_argument, nullptr, 'C'},
+        {"only_misc", required_argument, nullptr, 'M'},
         {nullptr, 0, nullptr, 0}};
 
     /* getopt_long stores the option index here. */
     int option_index = 0;
 
-    c = getopt_long(argc, argv, "b:c:i:l:m:p:r:s:t:h", long_options,
-                    &option_index);
+    c = getopt_long(argc, argv, "c:i:l:m:p:r:b:s:t:f:w:d:P:F:a:C:M:h",
+                    long_options, &option_index);
 
     /* Detect the end of the options. */
     if (c == -1)
       break;
 
     switch (c) {
-    case 'b':
-      input_mean = strtod(optarg, nullptr);
-      break;
     case 'c':
       frame_cnt = strtol(optarg, nullptr, 10);
       break;
@@ -222,11 +249,56 @@ int main(int argc, char **argv) {
     case 'r':
       input_source = (eInputType)strtol(optarg, nullptr, 10);
       break;
+    case 'b':
+      input_mean = strtod(optarg, nullptr);
+      break;
     case 's':
       input_std = strtod(optarg, nullptr);
       break;
     case 't':
       num_threads = strtol(optarg, nullptr, 10);
+      break;
+    case 'f':
+      FEA_CPY2TCM = strtol(optarg, nullptr, 10);
+      break;
+    case 'w':
+      FILTER_CPY2TCM = strtol(optarg, nullptr, 10);
+      break;
+    case 'd':
+      PROFILE = strtol(optarg, nullptr, 10);
+      break;
+    case 'P':
+      CONV_PROFILE = strtol(optarg, nullptr, 10);
+      break;
+    case 'F':
+      FREQ = strtol(optarg, nullptr, 10);
+      break;
+    case 'a': {
+      char *core_id_str = strtok(optarg, ",");
+      cpu_set_t mask;
+      CPU_ZERO(&mask);
+      while (core_id_str) {
+        long core_id = strtol(core_id_str, nullptr, 10);
+        if (core_id > -1) {
+          CPU_SET(core_id, &mask);
+          fprintf(stderr, "set affinity to %d!\n", core_id);
+        } else {
+          fprintf(stderr, "noaffinity set!\n");
+        }
+        core_id_str = strtok(NULL, ",");
+      }
+      int result = sched_setaffinity(0, sizeof(mask), &mask);
+      if (result == 0) {
+        fprintf(stderr, "set process affinity suc!\n");
+      } else {
+        fprintf(stderr, "set process affinity err %d!\n", result);
+      }
+    } break;
+    case 'C':
+      ONLY_CONV = strtol(optarg, nullptr, 10);
+      break;
+    case 'M':
+      ONLY_MISC = strtol(optarg, nullptr, 10);
       break;
     case 'h':
       display_usage();
@@ -350,9 +422,10 @@ int main(int argc, char **argv) {
 
     if (profiling) {
       std::cout << "Inference time for frame " << frame_index << ": "
-                << inference_time_ms << " ms" << std::endl;
+                << inference_time_ms << " ms"
+                << " XNNPACKrun: " << ELAPSEDTIME << "ms" << std::endl;
     }
-
+    ELAPSEDTIME = 0;
     // Report the inference output
     std::string last_label = "None";
     int argmax = -1;
